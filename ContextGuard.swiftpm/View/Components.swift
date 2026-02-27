@@ -44,9 +44,12 @@ struct ActionCard: View {
 
 struct IssueCard: View {
     let issue: ConsistencyIssue
-    @State private var isExpanded = true
-    
     let index: Int
+    
+    @State private var isExpanded = true
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    
+    private var isCompact: Bool { sizeClass == .compact }
     
     var severityColor: Color {
         switch issue.severity.uppercased() {
@@ -89,8 +92,9 @@ struct IssueCard: View {
         )
     }
     
+    // MARK: - Header
+    
     private var header: some View {
-        // Severity badge
         HStack(spacing: 12) {
             Image(systemName: severityIcon)
                 .font(.caption.bold())
@@ -125,9 +129,42 @@ struct IssueCard: View {
         .padding(16)
     }
     
+    // MARK: - Expanded Content
+    
     private var expandedContent: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Contradiction comparison
+            contradictionComparison
+            suggestedFixSection
+        }
+        .padding(16)
+    }
+    
+    @ViewBuilder
+    private var contradictionComparison: some View {
+        if isCompact {
+            // iPhone: stack vertically
+            VStack(spacing: 12) {
+                contradictionBlock(
+                    label: "Source",
+                    document: issue.sourceDocument,
+                    text: issue.sourceText,
+                    color: .red
+                )
+                
+                Image(systemName: "arrow.up.arrow.down")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                
+                contradictionBlock(
+                    label: "Target",
+                    document: issue.targetDocument,
+                    text: issue.targetText,
+                    color: .blue
+                )
+            }
+        } else {
+            // iPad: side by side
             HStack(alignment: .top, spacing: 12) {
                 contradictionBlock(
                     label: "Source",
@@ -148,20 +185,21 @@ struct IssueCard: View {
                     color: .blue
                 )
             }
-            
-            VStack(alignment: .leading, spacing: 6) {
-                Label("Suggested Fix", systemImage: "lightbulb.fill")
-                    .font(.caption.bold())
-                    .foregroundStyle(.green)
-                
-                Text(issue.suggestedFix)
-                    .font(.callout)
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.green.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
-            }
         }
-        .padding(16)
+    }
+    
+    private var suggestedFixSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("Suggested Fix", systemImage: "lightbulb.fill")
+                .font(.caption.bold())
+                .foregroundStyle(.green)
+            
+            Text(issue.suggestedFix)
+                .font(.callout)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.green.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+        }
     }
     
     private func contradictionBlock(label: String, document: String, text: String, color: Color) -> some View {
@@ -187,21 +225,10 @@ struct IssueCard: View {
 
 // MARK: - Previews
 
-#Preview("Action Cards") {
+#Preview("Action Cards — iPad") {
     HStack(spacing: 20) {
-        ActionCard(
-            icon: "folder.badge.plus",
-            title: "Select Files",
-            subtitle: "Import .txt or .pdf",
-            color: .blue
-        ) {}
-        
-        ActionCard(
-            icon: "camera.viewfinder",
-            title: "Scan Paper",
-            subtitle: "Use iPad camera",
-            color: .green
-        ) {}
+        ActionCard(icon: "folder.badge.plus", title: "Select Files", subtitle: "Import .txt or .pdf", color: .blue) {}
+        ActionCard(icon: "camera.viewfinder", title: "Scan Paper", subtitle: "Use iPad camera", color: .green) {}
     }
     .padding(40)
 }
