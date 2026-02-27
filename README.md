@@ -8,7 +8,7 @@ In educational settings, legal research, and technical documentation, informatio
 
 Example: Document A says "Emperor penguins are native to Antarctica" while Document B says "Emperor penguins are commonly found in the Arctic." A human reader may not notice this contradiction across files, but it undermines the reliability of the entire knowledge base.
 
-**Context Guard** is an on-device AI agent that acts as a quality assurance layer. It checks a small set of documents (1–2 pages) for factual, semantic, and logical contradictions — entirely on-device, with zero data leaving the iPad.
+**Context Guard** is an on-device AI agent that acts as a quality assurance layer. It checks a small set of documents (1–2 pages) for factual, semantic, and logical contradictions — entirely on-device, with zero data leaving the iPad or iPhone.
 
 ## Sustainability Angle
 
@@ -23,7 +23,7 @@ Grounded in:
 
 An **inconsistency** is defined as: an unintentional violation of coherence that creates extraneous cognitive load by presenting contradictory information about the same entity or concept.
 
-This definition comes from the research paper "LLM-Based Multi-Artifact Consistency Verification for Programming Exercise Quality Assurance" (Dietrich et al., Koli Calling 2025), which this project adapts from programming exercise artifacts to general natural language documents.
+This definition comes from the research paper "LLM-Based Multi-Artifact Consistency Verification for Programming Exercise Quality Assurance" [(Dietrich et al., Koli Calling 2025)](https://www.sciencedirect.com/science/article/pii/S2666920X25001778) and my Bachelor-Thesis implementation of this research papaer. This project adapts it from programming exercise artifacts to general natural language documents.
 
 ## Inconsistency Types (Adapted for Natural Language)
 
