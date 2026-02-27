@@ -6,3 +6,10 @@
 //
 
 import Foundation
+
+enum CheckingState: Equatable {
+    case idle
+    case analyzing
+    case completed
+    case failed(String)
+}

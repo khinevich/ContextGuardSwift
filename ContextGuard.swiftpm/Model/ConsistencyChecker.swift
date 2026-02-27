@@ -1,0 +1,205 @@
+//
+//  File.swift
+//  ContextGuard
+//
+//  Created by Mikhail Khinevich on 27.02.26.
+//
+
+import Foundation
+import Observation
+import PDFKit
+
+@available(iOS 26.0, *)
+
+@MainActor
+@Observable
+class ConsistencyChecker {
+    var documents: [Document] = []
+    var issues: [ConsistencyIssue] = []
+    var state: CheckingState = .idle
+    
+    func addDocument(_ document: Document) {
+        documents.append(document)
+    }
+    
+    func clear() {
+        documents.removeAll()
+        issues.removeAll()
+        state = .idle
+    }
+    
+    // MARK: - File Import
+    
+    func importFiles(from urls: [URL]) {
+        for url in urls {
+            if let document = loadDocument(from: url) {
+                addDocument(document)
+            }
+        }
+    }
+    
+    private func loadDocument(from url: URL) -> Document? {
+        guard url.startAccessingSecurityScopedResource() else {
+            return nil
+        }
+        defer { url.stopAccessingSecurityScopedResource() }
+        
+        let title = url.lastPathComponent
+        let text: String?
+        
+        if url.pathExtension.lowercased() == "pdf" {
+            text = extractTextFromPDF(url: url)
+        } else {
+            text = try? String(contentsOf: url, encoding: .utf8)
+        }
+        
+        guard let content = text, !content.isEmpty else {
+            return nil
+        }
+        
+        return Document(id: UUID(), title: title, content: content)
+    }
+    
+    private func extractTextFromPDF(url: URL) -> String? {
+        guard let pdf = PDFDocument(url: url) else { return nil }
+        
+        var fullText = ""
+        for index in 0..<pdf.pageCount {
+            if let page = pdf.page(at: index),
+               let pageText = page.string {
+                fullText += pageText + "\n"
+            }
+        }
+        
+        return fullText.isEmpty ? nil : fullText
+    }
+    
+    // MARK: - Demo
+    
+    func loadDemo() {
+        clear()
+        
+        // Bundled sample files — create these in Resources/ folder
+        if let pathA = Bundle.main.url(forResource: "DocA_Penguins", withExtension: "txt"),
+           let textA = try? String(contentsOf: pathA, encoding: .utf8) {
+            addDocument(Document(id: UUID(), title: "DocA_Penguins.txt", content: textA))
+        }
+        
+        if let pathB = Bundle.main.url(forResource: "DocB_Penguins", withExtension: "txt"),
+           let textB = try? String(contentsOf: pathB, encoding: .utf8) {
+            addDocument(Document(id: UUID(), title: "DocB_Penguins.txt", content: textB))
+        }
+        
+        // Fallback: if resource files are not yet created, use inline text
+        if documents.isEmpty {
+            addDocument(Document(
+                id: UUID(),
+                title: "DocA_Penguins.txt",
+                content: """
+                Emperor penguins are the tallest of all penguin species, reaching nearly 4 feet in height. \
+                They are native to Antarctica, where they endure harsh winters with temperatures dropping to \
+                minus 60 degrees Celsius. Emperor penguins breed during the Antarctic winter, with males \
+                incubating eggs on their feet for over two months. Their diet consists primarily of fish, \
+                squid, and krill found in the Southern Ocean.
+                """
+            ))
+            
+            addDocument(Document(
+                id: UUID(),
+                title: "DocB_Penguins.txt",
+                content: """
+                Emperor penguins are commonly found in the Arctic region, where they coexist with polar bears \
+                and other Arctic wildlife. They prefer moderate temperatures around 5 degrees Celsius and avoid \
+                extreme cold. Emperor penguins typically breed in the summer months and their eggs are incubated \
+                in ground nests. Their primary food source is freshwater fish from Arctic rivers and lakes.
+                """
+            ))
+        }
+    }
+    
+    // MARK: - Consistency Check
+    
+    func runCheck() async {
+        state = .analyzing
+        issues.removeAll()
+        
+        // TODO: Phase 3 — Replace with real LanguageModelSession call
+        // simulate a delay and return mock results for UI development
+        
+        try? await Task.sleep(for: .seconds(2))
+        
+        issues = [
+            ConsistencyIssue(
+                severity: "HIGH",
+                rationale: "The habitat of Emperor penguins is described contradictorily across documents.",
+                sourceText: "They are native to Antarctica",
+                sourceDocument: "DocA_Penguins.txt",
+                targetText: "Emperor penguins are commonly found in the Arctic region",
+                targetDocument: "DocB_Penguins.txt",
+                suggestedFix: "Verify the correct habitat. Emperor penguins are native to Antarctica, not the Arctic."
+            ),
+            ConsistencyIssue(
+                severity: "MEDIUM",
+                rationale: "Temperature preferences are contradictory between documents.",
+                sourceText: "temperatures dropping to minus 60 degrees Celsius",
+                sourceDocument: "DocA_Penguins.txt",
+                targetText: "They prefer moderate temperatures around 5 degrees Celsius",
+                targetDocument: "DocB_Penguins.txt",
+                suggestedFix: "Reconcile temperature claims. Emperor penguins survive extreme cold, not moderate temperatures."
+            ),
+            ConsistencyIssue(
+                severity: "MEDIUM",
+                rationale: "Breeding season is described differently across documents.",
+                sourceText: "breed during the Antarctic winter",
+                sourceDocument: "DocA_Penguins.txt",
+                targetText: "typically breed in the summer months",
+                targetDocument: "DocB_Penguins.txt",
+                suggestedFix: "Confirm breeding season. Emperor penguins breed during the Antarctic winter."
+            ),
+            ConsistencyIssue(
+                severity: "LOW",
+                rationale: "Diet sources differ between documents.",
+                sourceText: "fish, squid, and krill found in the Southern Ocean",
+                sourceDocument: "DocA_Penguins.txt",
+                targetText: "freshwater fish from Arctic rivers and lakes",
+                targetDocument: "DocB_Penguins.txt",
+                suggestedFix: "Align diet descriptions. Emperor penguins feed in the Southern Ocean, not Arctic freshwater."
+            )
+        ]
+        
+        state = .completed
+    }
+    
+    // MARK: - Export
+    func exportAsText() -> String {
+        var report = "Context Guard — Consistency Report\n"
+        report += "Checked \(documents.count) document(s)\n"
+        report += "Found \(issues.count) issue(s)\n"
+        report += String(repeating: "=", count: 40) + "\n\n"
+        
+        for (index, issue) in issues.enumerated() {
+            report += "Issue #\(index + 1) [\(issue.severity.uppercased())]\n"
+            report += issue.rationale + "\n\n"
+            report += "  Source: \(issue.sourceDocument)\n"
+            report += "  \"\(issue.sourceText)\"\n\n"
+            report += "  Target: \(issue.targetDocument)\n"
+            report += "  \"\(issue.targetText)\"\n\n"
+            report += "  Suggested Fix: \(issue.suggestedFix)\n"
+            report += String(repeating: "-", count: 40) + "\n\n"
+        }
+        
+        return report
+    }
+    
+    func exportToFile() -> URL? {
+        let text = exportAsText()
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("ContextGuard_Report.txt")
+        
+        do {
+            try text.write(to: url, atomically: true, encoding: .utf8)
+            return url
+        } catch {
+            return nil
+        }
+    }
+}

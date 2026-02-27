@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Document {
+struct Document: Identifiable {
     let id: UUID
     let title: String
     let content: String
