@@ -14,12 +14,31 @@ import PDFKit
 @MainActor
 @Observable
 class ConsistencyChecker {
+
     var documents: [Document] = []
     var issues: [ConsistencyIssue] = []
     var state: CheckingState = .idle
     
+    /// Hard limit — keeps total text within Foundation Models' 4096-token context window.
+    /// 3 docs × ~700 words each ≈ 2100 words ≈ 3000 tokens, leaving room for prompt + output.
+    static let maxDocuments = 3
+    
+    /// True when we haven't hit the document cap yet.
+    var canAddMore: Bool {
+        documents.count < Self.maxDocuments
+    }
+    /// How many slots remain — useful for UI labels like "2 of 3 slots used".
+    var remainingSlots: Int {
+        max(0, Self.maxDocuments - documents.count)
+    }
+    
     func addDocument(_ document: Document) {
+        guard canAddMore else { return }
         documents.append(document)
+    }
+    
+    func removeDocument(id: UUID) {
+        documents.removeAll { $0.id == id }
     }
     
     func clear() {
@@ -31,7 +50,9 @@ class ConsistencyChecker {
     // MARK: - File Import
     
     func importFiles(from urls: [URL]) {
+        // NOTE - enable max select for 3 elements for now
         for url in urls {
+            guard canAddMore else { break }
             if let document = loadDocument(from: url) {
                 addDocument(document)
             }

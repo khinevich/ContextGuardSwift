@@ -15,9 +15,22 @@ struct HomeView: View {
     
     @Environment(\.horizontalSizeClass) private var sizeClass
     
+    // MARK: - Local State
+    
+    /// Which document to show in the preview sheet. nil = no sheet.
+    @State private var previewDocument: Document? = nil
+    
+    /// iPad only: toggles between list and grid layout for loaded documents.
+    /// false = list (default), true = grid (icon view like Files app).
+    @State private var useGridView: Bool = false
+    
     private var layout: AppLayout {
         AppLayout.current(for: sizeClass)
     }
+    
+    private var isCompact: Bool { sizeClass == .compact }
+    
+    // MARK: - Body
     
     var body: some View {
         ScrollView {
@@ -41,6 +54,10 @@ struct HomeView: View {
             }
             .padding(.vertical, layout.sectionSpacing)
         }
+        // Preview sheet — presented when previewDocument is set
+        .sheet(item: $previewDocument) { doc in
+            DocumentPreviewSheet(document: doc)
+        }
     }
     
     // MARK: - Header
@@ -62,11 +79,141 @@ struct HomeView: View {
         }
     }
     
+    // MARK: - Loaded Documents Section
+    
+    /// The entire loaded documents area: header with count + view toggle,
+    /// then either a list or grid of document cards.
+    private var loadedDocumentsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header row: title, count, and iPad view toggle
+            HStack {
+                Text("Loaded Documents")
+                    .font(.headline)
+                
+                Spacer()
+                
+                // "2 of 3" capacity label
+                Text("\(checker.documents.count) of \(ConsistencyChecker.maxDocuments)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                
+                // iPad only: list/grid toggle
+                // Using a Picker with .segmented style — two SF Symbol buttons.
+                if !isCompact {
+                    Picker("View", selection: $useGridView) {
+                        Image(systemName: "list.bullet")
+                            .tag(false)
+                        Image(systemName: "square.grid.2x2")
+                            .tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 100)
+                }
+            }
+            
+            // Content: list or grid
+            if useGridView && !isCompact {
+                gridDocumentsView
+            } else {
+                listDocumentsView
+            }
+        }
+        .padding(.horizontal, layout.horizontalPadding)
+    }
+    
+    // MARK: - List View (all devices)
+    
+    /// List with swipe actions. `.swipeActions` only works inside a `List`,
+    /// not in a plain VStack > ForEach. We use `.scrollDisabled(true)` so
+    /// the List doesn't conflict with the outer ScrollView, and calculate
+    /// a fixed frame height based on document count.
+    private var listDocumentsView: some View {
+        // Row height: ~60 on iPhone, ~92 on iPad (taller rows with thumbnails)
+        let rowHeight: CGFloat = isCompact ? 60 : 92
+        let listHeight = CGFloat(checker.documents.count) * rowHeight
+        
+        return List {
+            ForEach(checker.documents, id: \.id) { doc in
+                // Tap anywhere on the row → open preview sheet
+                Button {
+                    previewDocument = doc
+                } label: {
+                    DocumentRowView(document: doc)
+                }
+                .buttonStyle(.plain)
+                // Left-swipe reveals two actions: Preview and Delete
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    // Delete button (rightmost, shown first)
+                    Button(role: .destructive) {
+                        withAnimation {
+                            checker.removeDocument(id: doc.id)
+                        }
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                    
+                    // Preview button (second from right)
+                    Button {
+                        previewDocument = doc
+                    } label: {
+                        Label("Preview", systemImage: "eye")
+                    }
+                    .tint(.blue)
+                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
+        }
+        .listStyle(.plain)
+        .scrollDisabled(true)               // Outer ScrollView handles scrolling
+        .scrollContentBackground(.hidden)   // Remove default List background
+        .frame(height: listHeight)
+    }
+    
+    // MARK: - Grid View (iPad only)
+    
+    /// LazyVGrid with document page cards — mimics the Files app icon view.
+    /// Long-press (context menu) provides Preview and Delete actions since
+    /// grid items don't support swipe gestures.
+    private var gridDocumentsView: some View {
+        let columns = [
+            GridItem(.adaptive(minimum: 140, maximum: 160), spacing: 20)
+        ]
+        
+        return LazyVGrid(columns: columns, spacing: 20) {
+            ForEach(checker.documents, id: \.id) { doc in
+                DocumentGridItemView(document: doc)
+                    // Tap → preview
+                    .onTapGesture {
+                        previewDocument = doc
+                    }
+                    // Long-press → context menu with Preview and Delete
+                    .contextMenu {
+                        Button {
+                            previewDocument = doc
+                        } label: {
+                            Label("Preview", systemImage: "eye")
+                        }
+                        
+                        Button(role: .destructive) {
+                            withAnimation {
+                                checker.removeDocument(id: doc.id)
+                            }
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+            }
+        }
+        .padding(.vertical, 8)
+    }
+    
     // MARK: - Action Buttons
     
     private var actionButtonsSection: some View {
         Group {
-            if sizeClass == .compact {
+            if isCompact {
                 VStack(spacing: layout.cardSpacing) {
                     actionCards
                 }
@@ -84,42 +231,30 @@ struct HomeView: View {
         ActionCard(
             icon: "folder.badge.plus",
             title: "Select Files",
-            subtitle: "Import .txt or .pdf",
-            color: .blue
+            subtitle: checker.canAddMore
+                ? "Import .txt or .pdf"
+                : "Limit reached (\(ConsistencyChecker.maxDocuments) docs)",
+            color: checker.canAddMore ? .blue : .gray
         ) {
-            showFileImporter = true
+            if checker.canAddMore {
+                showFileImporter = true
+            }
         }
+        .disabled(!checker.canAddMore)
         
         ActionCard(
             icon: "camera.viewfinder",
             title: "Scan Paper",
-            subtitle: "Use iPad camera",
-            color: .green
+            subtitle: checker.canAddMore
+                ? "Use iPad camera"
+                : "Limit reached (\(ConsistencyChecker.maxDocuments) docs)",
+            color: checker.canAddMore ? .green : .gray
         ) {
-            showScanner = true
-        }
-    }
-    
-    // MARK: - Loaded Documents
-    
-    private var loadedDocumentsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Loaded Documents")
-                    .font(.headline)
-                
-                Spacer()
-                
-                Text("\(checker.documents.count) file\(checker.documents.count == 1 ? "" : "s")")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            
-            ForEach(checker.documents, id: \.id) { doc in
-                DocumentRowView(document: doc)
+            if checker.canAddMore {
+                showScanner = true
             }
         }
-        .padding(.horizontal, layout.horizontalPadding)
+        .disabled(!checker.canAddMore)
     }
     
     // MARK: - Run Check
@@ -161,6 +296,8 @@ struct HomeView: View {
     }
 }
 
+// MARK: - Previews
+
 @available(iOS 26.0, *)
 #Preview("Home — Empty") {
     @Previewable @State var showFiles = false
@@ -183,8 +320,25 @@ struct HomeView: View {
         HomeView(checker: checker, showFileImporter: $showFiles, showScanner: $showScanner)
             .navigationTitle("Context Guard")
             .onAppear {
-                checker.addDocument(Document(id: UUID(), title: "DocA_Penguins.txt", content: "Emperor penguins are native to Antarctica..."))
-                checker.addDocument(Document(id: UUID(), title: "DocB_Penguins.txt", content: "Emperor penguins are found in the Arctic..."))
+                checker.addDocument(Document(id: UUID(), title: "DocA_Penguins.txt", content: "Emperor penguins are native to Antarctica, where they endure harsh winters with temperatures dropping to minus 60 degrees Celsius. They breed during the Antarctic winter."))
+                checker.addDocument(Document(id: UUID(), title: "DocB_Penguins.txt", content: "Emperor penguins are found in the Arctic region, where they coexist with polar bears. They prefer moderate temperatures around 5 degrees Celsius."))
+            }
+    }
+}
+
+@available(iOS 26.0, *)
+#Preview("Home — At Capacity") {
+    @Previewable @State var showFiles = false
+    @Previewable @State var showScanner = false
+    let checker = ConsistencyChecker()
+    
+    NavigationStack {
+        HomeView(checker: checker, showFileImporter: $showFiles, showScanner: $showScanner)
+            .navigationTitle("Context Guard")
+            .onAppear {
+                checker.addDocument(Document(id: UUID(), title: "DocA.txt", content: "First document content..."))
+                checker.addDocument(Document(id: UUID(), title: "DocB.txt", content: "Second document content..."))
+                checker.addDocument(Document(id: UUID(), title: "DocC.txt", content: "Third document content..."))
             }
     }
 }
