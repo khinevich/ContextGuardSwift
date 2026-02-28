@@ -75,6 +75,7 @@ struct DemoFlowView: View {
 
     @State private var step: DemoStep = .welcome
     @State private var previewDocument: Document? = nil
+    @State private var goingForward: Bool = true
 
     private var isCompact: Bool { sizeClass == .compact }
     private var progress: Double {
@@ -106,8 +107,8 @@ struct DemoFlowView: View {
                             stepContent
                                 .id(step)
                                 .transition(.asymmetric(
-                                    insertion: .move(edge: .trailing).combined(with: .opacity),
-                                    removal: .move(edge: .leading).combined(with: .opacity)
+                                    insertion: .move(edge: goingForward ? .trailing : .leading).combined(with: .opacity),
+                                    removal: .move(edge: goingForward ? .leading : .trailing).combined(with: .opacity)
                                 ))
                         }
                         .padding(.horizontal, isCompact ? 20 : 40)
@@ -248,13 +249,13 @@ struct DemoFlowView: View {
             Task {
                 try? await Task.sleep(for: .seconds(2.5))
                 withAnimation(.easeInOut(duration: 0.3)) {
+                    goingForward = true
                     if let next = step.nextStep {
                         step = next
                     }
                 }
             }
-        }
-    }
+        }    }
 
     // MARK: - Step 4: Two-Doc Results
 
@@ -439,6 +440,7 @@ struct DemoFlowView: View {
             if let prev = step.previousStep, !step.isAnalyzing {
                 Button {
                     withAnimation(.easeInOut(duration: 0.3)) {
+                        goingForward = false
                         step = prev
                     }
                 } label: {
@@ -458,6 +460,7 @@ struct DemoFlowView: View {
             } else {
                 Button {
                     withAnimation(.easeInOut(duration: 0.3)) {
+                        goingForward = true
                         if let next = step.nextStep {
                             step = next
                         }

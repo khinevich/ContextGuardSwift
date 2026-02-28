@@ -100,7 +100,7 @@ struct ContentView: View {
         .alert("File Limit", isPresented: $showDroppedAlert) {
             Button("OK") {}
         } message: {
-            Text("\(droppedFilesCount) file\(droppedFilesCount == 1 ? " was" : "s were") not imported. The maximum is \(ConsistencyChecker.maxDocuments) documents total.")
+            Text("\(droppedFilesCount) file\(droppedFilesCount == 1 ? " was" : "s were") not imported. The maximum amount of documents, due to LLM Token restrictions, is: \(ConsistencyChecker.maxDocuments)")
         }
     }
 }
