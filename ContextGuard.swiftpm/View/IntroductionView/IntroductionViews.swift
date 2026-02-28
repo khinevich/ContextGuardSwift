@@ -30,7 +30,7 @@ struct IntroductionWelcomeView: View {
             }
 
             InfoCard(icon: "shield.checkered", color: .green) {
-                Text("All processing happens on your iPad using Apple Intelligence. **No data ever leaves your device.**")
+                Text("All processing happens on your iPhone or Pad using Apple Intelligence. **No data ever leaves your device.**")
             }
 
             Text("Let's walk through three examples.")

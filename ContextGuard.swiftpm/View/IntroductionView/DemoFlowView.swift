@@ -170,7 +170,7 @@ struct DemoFlowView: View {
                 allTitles: [DemoData.libraryDoc.title],
                 footerIcon: "info.circle.fill",
                 footerColor: .blue,
-                footerContent: "When no contradictions are found, Context Guard confirms your document is consistent. This is the result you **want** to see for your own documents."
+                footerContent: "When no contradictions are found, Context Guard confirms your document is consistent. This is the result you want to see for your own documents."
             )
 
         case .tips:
