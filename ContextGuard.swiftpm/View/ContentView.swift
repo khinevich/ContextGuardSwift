@@ -54,6 +54,22 @@ struct ContentView: View {
                 checker.importFiles(from: urls)
             }
         }
+        .fullScreenCover(isPresented: $showScanner) {
+            DocumentScannerView(
+                onScan: { scannedText in
+                    let doc = Document(
+                        id: UUID(),
+                        title: "Scanned Document",
+                        content: scannedText
+                    )
+                    checker.addDocument(doc)
+                    showScanner = false
+                },
+                onCancel: {
+                    showScanner = false
+                }
+            )
+        }
     }
     
     private var startOverButton: some ToolbarContent {

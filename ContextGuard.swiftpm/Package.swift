@@ -31,6 +31,10 @@ let package = Package(
                 .landscapeRight,
                 .landscapeLeft,
                 .portraitUpsideDown(.when(deviceFamilies: [.pad]))
+            ],
+            capabilities: [
+                .fileAccess(.pictureFolder, mode: .readWrite),
+                .camera(purposeString: "Context Guard uses the camera to scan paper documents for consistency checking.")
             ]
         )
     ],

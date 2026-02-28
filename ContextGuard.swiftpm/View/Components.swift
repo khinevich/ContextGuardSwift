@@ -62,8 +62,8 @@ struct IssueCard: View {
     
     var severityIcon: String {
         switch issue.severity.uppercased() {
-        case "HIGH": return "exclamationmark.3"
-        case "MEDIUM": return "exclamationmark.2"
+        case "HIGH": return "exclamationmark"
+        case "MEDIUM": return "exclamationmark"
         case "LOW": return "exclamationmark"
         default: return "questionmark"
         }
