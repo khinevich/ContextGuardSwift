@@ -8,7 +8,10 @@
 import Foundation
 import Observation
 import PDFKit
+
+#if canImport(FoundationModels)
 import FoundationModels
+#endif
 
 @available(iOS 26.0, *)
 @MainActor
@@ -166,12 +169,25 @@ class ConsistencyChecker {
         return chunks.joined(separator: "\n\n")
     }
 
+    // MARK: - Run Check (with FoundationModels or mock fallback)
+
     func runCheck() async {
         guard !documents.isEmpty else { return }
 
         state = .analyzing
         issues.removeAll()
 
+        #if canImport(FoundationModels)
+        await runCheckWithFoundationModels()
+        #else
+        await runCheckMock()
+        #endif
+    }
+
+    // MARK: - Real AI Check (FoundationModels available)
+
+    #if canImport(FoundationModels)
+    private func runCheckWithFoundationModels() async {
         // 1. Availability check
         let model = SystemLanguageModel.default
         switch model.availability {
@@ -233,6 +249,106 @@ class ConsistencyChecker {
         } catch {
             state = .failed("Unexpected error: \(error.localizedDescription)")
         }
+    }
+    #endif
+
+    // MARK: - Mock Fallback (when FoundationModels is not available)
+
+    /// Used when running in Swift Playgrounds or on devices without Apple Intelligence.
+    /// Returns realistic mock results so the full UI flow can be demonstrated.
+    private func runCheckMock() async {
+        // Simulate processing delay
+        try? await Task.sleep(for: .seconds(2))
+
+        // Check if it's the demo documents (school trip)
+        let titles = documents.map { $0.title }
+        let allContent = documents.map { $0.content }.joined(separator: " ")
+
+        if titles.contains("Science_Museum_Trip.txt") && titles.contains("Teacher_Trip_Update.txt") {
+            // Two-document demo: school trip contradictions
+            issues = [
+                ConsistencyIssue(
+                    severity: "HIGH",
+                    rationale: "The trip destination is completely different across the two documents.",
+                    sourceText: "trip to the Science Museum in the city center",
+                    sourceDocument: "Science_Museum_Trip.txt",
+                    targetText: "trip to the Water Park at the beach",
+                    targetDocument: "Teacher_Trip_Update.txt",
+                    suggestedFix: "Confirm the actual destination — Science Museum or Water Park — and update both documents."
+                ),
+                ConsistencyIssue(
+                    severity: "MEDIUM",
+                    rationale: "The trip date and departure time are contradictory.",
+                    sourceText: "Monday, June 1st at 8:00 AM",
+                    sourceDocument: "Science_Museum_Trip.txt",
+                    targetText: "Wednesday, June 3rd at 10:00 AM",
+                    targetDocument: "Teacher_Trip_Update.txt",
+                    suggestedFix: "Align the trip date — parents need one consistent date and time."
+                ),
+                ConsistencyIssue(
+                    severity: "MEDIUM",
+                    rationale: "The food instructions directly contradict each other.",
+                    sourceText: "bring a packed lunch from home. The museum cafe is currently closed",
+                    sourceDocument: "Science_Museum_Trip.txt",
+                    targetText: "You do not need to bring food. We will all eat lunch together",
+                    targetDocument: "Teacher_Trip_Update.txt",
+                    suggestedFix: "Clarify whether students should pack lunch or if food is provided."
+                ),
+                ConsistencyIssue(
+                    severity: "MEDIUM",
+                    rationale: "The dress code contradicts across documents.",
+                    sourceText: "Students must wear their blue school uniform",
+                    sourceDocument: "Science_Museum_Trip.txt",
+                    targetText: "Do not wear your school uniform because it will get wet",
+                    targetDocument: "Teacher_Trip_Update.txt",
+                    suggestedFix: "Specify one dress code — school uniform or swimming clothes."
+                ),
+            ]
+        } else if allContent.contains("sun hat") && allContent.contains("Hats are not allowed") {
+            // Single-document demo: camp guide contradictions
+            let docTitle = titles.first ?? "Document"
+            issues = [
+                ConsistencyIssue(
+                    severity: "HIGH",
+                    rationale: "The snack policy directly contradicts the camp shop description.",
+                    sourceText: "No candy, soda, or sugary snacks are allowed",
+                    sourceDocument: docTitle,
+                    targetText: "bring $5 every day so you can buy candy and soda",
+                    targetDocument: docTitle,
+                    suggestedFix: "Decide whether candy and soda are banned or sold."
+                ),
+                ConsistencyIssue(
+                    severity: "HIGH",
+                    rationale: "The hat policy contradicts itself within the same document.",
+                    sourceText: "You must always wear a sun hat when you are outside",
+                    sourceDocument: docTitle,
+                    targetText: "Hats are not allowed at camp",
+                    targetDocument: docTitle,
+                    suggestedFix: "Clarify whether hats are required or banned."
+                ),
+                ConsistencyIssue(
+                    severity: "HIGH",
+                    rationale: "The grading section says there are no tests, but then describes a final exam.",
+                    sourceText: "There are no tests at this camp",
+                    sourceDocument: docTitle,
+                    targetText: "The final exam is on Friday afternoon",
+                    targetDocument: docTitle,
+                    suggestedFix: "Remove either the 'no tests' claim or the final exam details."
+                ),
+            ]
+        } else {
+            // Generic fallback for user-imported documents
+            // Show a helpful message instead of fake results
+            state = .failed(
+                "On-device AI (Apple Intelligence) is not available in this environment. " +
+                "To run a real consistency check, open this project in Xcode 26 and deploy " +
+                "to a physical device with Apple Intelligence enabled.\n\n" +
+                "Tap \"Interactive Demo\" on the home screen to see how the app works."
+            )
+            return
+        }
+
+        state = .completed
     }
 
     // MARK: - Export

@@ -1,11 +1,13 @@
 //
-//  File.swift
+//  ConsistencyIssue.swift
 //  ContextGuard
 //
 //  Created by Mikhail Khinevich on 27.02.26.
 //
 
 import Foundation
+
+#if canImport(FoundationModels)
 import FoundationModels
 
 @available(iOS 26.0, *)
@@ -32,12 +34,18 @@ struct ConsistencyIssue {
     @Guide(description: "How to fix this contradiction")
     var suggestedFix: String
 }
-//struct ConsistencyIssue {
-//    var severity: String
-//    var rationale: String
-//    var sourceText: String
-//    var sourceDocument: String
-//    var targetText: String
-//    var targetDocument: String
-//    var suggestedFix: String
-//}
+
+#else
+
+// Fallback when FoundationModels is not available (Swift Playgrounds, older Xcode)
+struct ConsistencyIssue {
+    var severity: String
+    var rationale: String
+    var sourceText: String
+    var sourceDocument: String
+    var targetText: String
+    var targetDocument: String
+    var suggestedFix: String
+}
+
+#endif
