@@ -201,11 +201,11 @@ struct IntroductionTipsView: View {
 
             TipRow(icon: "folder.badge.plus", color: .blue,
                    title: "Import Files",
-                   detail: "Tap **Select Files** to load .txt or .pdf documents from the Files app.")
+                   detail: "Tap **Import Files** to load .txt or .pdf documents from the Files app.")
 
-            TipRow(icon: "camera.viewfinder", color: .green,
-                   title: "Scan Paper",
-                   detail: "Use your iPad camera to **scan printed handouts**, whiteboards, or notes. The built-in OCR converts them to text automatically.")
+            TipRow(icon: "document.viewfinder", color: .green,
+                   title: "Scan Files",
+                   detail: "Use your iPhone or Pad camera to **scan printed handouts**, whiteboards, or notes. The built-in OCR converts them to text automatically.")
 
             TipRow(icon: "sparkle.magnifyingglass", color: .purple,
                    title: "Run the Check",
@@ -216,7 +216,7 @@ struct IntroductionTipsView: View {
                    detail: "Share your report via AirDrop, Messages, or save it to Files.")
 
             InfoCard(icon: "lock.shield.fill", color: .blue) {
-                Text("Everything runs **100% on-device** using Apple Intelligence. No internet connection needed. Your documents never leave your iPad.")
+                Text("Everything runs **100% on-device** using Apple Intelligence. No internet connection needed. Your documents never leave your iPhone or iPad.")
             }
 
             Button {

@@ -264,8 +264,8 @@ struct IssueCard: View {
 @available(iOS 26.0, *)
 #Preview("Action Cards") {
     HStack(spacing: 20) {
-        ActionCard(icon: "folder.badge.plus", title: "Select Files", subtitle: "Import .txt or .pdf", color: .blue) {}
-        ActionCard(icon: "camera.viewfinder", title: "Scan Paper", subtitle: "Use iPad camera", color: .green) {}
+        ActionCard(icon: "folder.badge.plus", title: "Import Files", subtitle: "Select .txt or .pdf", color: .blue) {}
+        ActionCard(icon: "document.viewfinder", title: "Scan Files", subtitle: "Use device camera", color: .green) {}
     }
     .padding(40)
 }

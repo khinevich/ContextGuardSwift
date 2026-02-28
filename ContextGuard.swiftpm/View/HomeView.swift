@@ -200,21 +200,21 @@ struct HomeView: View {
     private var actionCards: some View {
         ActionCard(
             icon: "folder.badge.plus",
-            title: "Select Files",
+            title: "Import Files",
             subtitle: checker.canAddMore
-                ? "Import .txt or .pdf"
+                ? "Select .txt or .pdf"
                 : "Limit reached (\(ConsistencyChecker.maxDocuments) docs)",
             color: checker.canAddMore ? .blue : .gray
         ) {
             if checker.canAddMore { showFileImporter = true }
         }
         .disabled(!checker.canAddMore)
-
+        
         ActionCard(
-            icon: "camera.viewfinder",
-            title: "Scan Paper",
+            icon: "document.viewfinder",
+            title: "Scan Files",
             subtitle: checker.canAddMore
-                ? "Use iPad camera"
+                ? "Use iPhone/iPad camera"
                 : "Limit reached (\(ConsistencyChecker.maxDocuments) docs)",
             color: checker.canAddMore ? .green : .gray
         ) {
