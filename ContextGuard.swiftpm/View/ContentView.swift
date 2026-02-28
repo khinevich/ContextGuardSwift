@@ -5,7 +5,12 @@ struct ContentView: View {
     @State private var checker = ConsistencyChecker()
     @State private var showFileImporter = false
     @State private var showScanner = false
-    
+    @State private var showDemo = false
+
+    /// Shown when user picks more files than remaining slots
+    @State private var droppedFilesCount = 0
+    @State private var showDroppedAlert = false
+
     var body: some View {
         NavigationStack {
             Group {
@@ -14,7 +19,8 @@ struct ContentView: View {
                     HomeView(
                         checker: checker,
                         showFileImporter: $showFileImporter,
-                        showScanner: $showScanner
+                        showScanner: $showScanner,
+                        showDemo: $showDemo
                     )
                 case .analyzing:
                     AnalyzingView(documents: checker.documents)
@@ -39,12 +45,16 @@ struct ContentView: View {
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         if let fileURL = checker.exportToFile() {
-                            ShareLink(item: fileURL, preview: SharePreview("Context Guard Report", image: Image(systemName: "doc.text")))
+                            ShareLink(
+                                item: fileURL,
+                                preview: SharePreview("Context Guard Report", image: Image(systemName: "doc.text"))
+                            )
                         }
                     }
                 }
             }
         }
+        // MARK: - File Importer
         .fileImporter(
             isPresented: $showFileImporter,
             allowedContentTypes: [.plainText, .pdf],
@@ -52,12 +62,20 @@ struct ContentView: View {
         ) { result in
             switch result {
             case .success(let urls):
-                let capped = Array(urls.prefix(checker.remainingSlots))
-                checker.importFiles(from: capped)
+                let slots = checker.remainingSlots
+                let accepted = Array(urls.prefix(slots))
+                checker.importFiles(from: accepted)
+
+                let dropped = urls.count - accepted.count
+                if dropped > 0 {
+                    droppedFilesCount = dropped
+                    showDroppedAlert = true
+                }
             case .failure:
                 break
             }
         }
+        // MARK: - Scanner
         .fullScreenCover(isPresented: $showScanner) {
             DocumentScannerView(
                 onScan: { scannedText in
@@ -74,19 +92,20 @@ struct ContentView: View {
                 }
             )
         }
-    }
-    
-    private var startOverButton: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            Button("Start Over") {
-                withAnimation { checker.clear() }
-            }
-            .tint(.blue)
+        // MARK: - Demo
+        .fullScreenCover(isPresented: $showDemo) {
+            DemoFlowView(checker: checker)
+        }
+        // MARK: - Dropped Files Alert
+        .alert("File Limit", isPresented: $showDroppedAlert) {
+            Button("OK") {}
+        } message: {
+            Text("\(droppedFilesCount) file\(droppedFilesCount == 1 ? " was" : "s were") not imported. The maximum is \(ConsistencyChecker.maxDocuments) documents total.")
         }
     }
 }
 
 @available(iOS 26.0, *)
-#Preview("Content View — Idle") {
+#Preview("Content View") {
     ContentView()
 }

@@ -1,21 +1,17 @@
-//
-//  Components.swift
-//  ContextGuard
-//
-//  Created by Mikhail Khinevich on 27.02.26.
-//
-
 import SwiftUI
 
 // MARK: - Document Color Registry
 
+/// Assigns consistent neutral colors and labels (Document A, B, C...) to documents.
+/// The same filename always gets the same color and letter across all issue cards.
 struct DocumentColorRegistry {
+    /// Neutral palette — avoids red/orange/yellow which are reserved for severity.
     static let palette: [Color] = [
-        Color(red: 0.37, green: 0.55, blue: 0.85),
-        Color(red: 0.55, green: 0.40, blue: 0.80),
-        Color(red: 0.25, green: 0.65, blue: 0.65),
-        Color(red: 0.80, green: 0.50, blue: 0.25),
-        Color(red: 0.45, green: 0.65, blue: 0.40),
+        Color(red: 0.37, green: 0.55, blue: 0.85),  // Blue
+        Color(red: 0.55, green: 0.40, blue: 0.80),  // Purple
+        Color(red: 0.25, green: 0.65, blue: 0.65),  // Teal
+        Color(red: 0.80, green: 0.50, blue: 0.25),  // Amber
+        Color(red: 0.45, green: 0.65, blue: 0.40),  // Green
     ]
 
     private static func uniqueOrdered(_ titles: [String]) -> [String] {
@@ -83,6 +79,7 @@ struct IssueCard: View {
 
     private var isCompact: Bool { sizeClass == .compact }
 
+    // Severity colors — red/orange/yellow only for the badge, never for documents
     private var severityColor: Color {
         switch issue.severity.uppercased() {
         case "HIGH":   return .red
@@ -94,13 +91,14 @@ struct IssueCard: View {
 
     private var severityIcon: String {
         switch issue.severity.uppercased() {
-        case "HIGH":   return "exclamationmark"
-        case "MEDIUM": return "exclamationmark"
+        case "HIGH":   return "exclamationmark.3"
+        case "MEDIUM": return "exclamationmark.2"
         case "LOW":    return "exclamationmark"
         default:       return "questionmark"
         }
     }
 
+    // Document colors — neutral palette, consistent per filename
     private var sourceColor: Color {
         DocumentColorRegistry.color(for: issue.sourceDocument, among: allDocumentTitles)
     }
@@ -113,6 +111,8 @@ struct IssueCard: View {
     private var targetLabel: String {
         DocumentColorRegistry.label(for: issue.targetDocument, among: allDocumentTitles)
     }
+
+    // MARK: Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -136,6 +136,8 @@ struct IssueCard: View {
                 .strokeBorder(severityColor.opacity(0.3), lineWidth: 1)
         )
     }
+
+    // MARK: Header
 
     private var header: some View {
         HStack(spacing: 12) {
@@ -172,6 +174,8 @@ struct IssueCard: View {
         .padding(16)
     }
 
+    // MARK: Expanded Content
+
     private var expandedContent: some View {
         VStack(alignment: .leading, spacing: 16) {
             contradictionComparison
@@ -185,8 +189,8 @@ struct IssueCard: View {
         if isCompact {
             VStack(spacing: 12) {
                 contradictionBlock(
-                    label: sourceLabel,
-                    document: issue.sourceDocument,
+                    documentTitle: issue.sourceDocument,
+                    documentLabel: sourceLabel,
                     text: issue.sourceText,
                     color: sourceColor
                 )
@@ -195,8 +199,8 @@ struct IssueCard: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
                 contradictionBlock(
-                    label: targetLabel,
-                    document: issue.targetDocument,
+                    documentTitle: issue.targetDocument,
+                    documentLabel: targetLabel,
                     text: issue.targetText,
                     color: targetColor
                 )
@@ -204,8 +208,8 @@ struct IssueCard: View {
         } else {
             HStack(alignment: .top, spacing: 12) {
                 contradictionBlock(
-                    label: sourceLabel,
-                    document: issue.sourceDocument,
+                    documentTitle: issue.sourceDocument,
+                    documentLabel: sourceLabel,
                     text: issue.sourceText,
                     color: sourceColor
                 )
@@ -214,8 +218,8 @@ struct IssueCard: View {
                     .foregroundStyle(.secondary)
                     .padding(.top, 28)
                 contradictionBlock(
-                    label: targetLabel,
-                    document: issue.targetDocument,
+                    documentTitle: issue.targetDocument,
+                    documentLabel: targetLabel,
                     text: issue.targetText,
                     color: targetColor
                 )
@@ -237,16 +241,28 @@ struct IssueCard: View {
         }
     }
 
-    private func contradictionBlock(label: String, document: String, text: String, color: Color) -> some View {
+    /// Each contradiction block shows:
+    /// 1. **Filename** — big title, colored (the primary identifier)
+    /// 2. **Document A** — small subtitle, colored (consistent label)
+    /// 3. **Quoted text** — the contradicting passage
+    private func contradictionBlock(
+        documentTitle: String,
+        documentLabel: String,
+        text: String,
+        color: Color
+    ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(label.uppercased())
-                .font(.caption2.bold())
+            // Big title: actual filename, colored to match this document everywhere
+            Text(documentTitle)
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(color)
 
-            Text(document)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            // Subtitle: "Document A" / "Document B" — same letter everywhere
+            Text(documentLabel)
+                .font(.caption2.bold())
+                .foregroundStyle(color.opacity(0.7))
 
+            // Quoted contradicting text
             Text("\"\(text)\"")
                 .font(.callout)
                 .italic()
@@ -288,24 +304,6 @@ struct IssueCard: View {
 }
 
 @available(iOS 26.0, *)
-#Preview("Issue Card — LOW") {
-    IssueCard(
-        issue: ConsistencyIssue(
-            severity: "LOW",
-            rationale: "Diet sources differ between documents.",
-            sourceText: "fish, squid, and krill found in the Southern Ocean",
-            sourceDocument: "DocA_Penguins.txt",
-            targetText: "freshwater fish from Arctic rivers and lakes",
-            targetDocument: "DocB_Penguins.txt",
-            suggestedFix: "Align diet descriptions. Emperor penguins feed in the Southern Ocean, not Arctic freshwater."
-        ),
-        index: 3,
-        allDocumentTitles: ["DocA_Penguins.txt", "DocB_Penguins.txt"]
-    )
-    .padding(40)
-}
-
-@available(iOS 26.0, *)
 #Preview("Same Document — MEDIUM") {
     IssueCard(
         issue: ConsistencyIssue(
@@ -315,7 +313,7 @@ struct IssueCard: View {
             sourceDocument: "Meeting_Notes.txt",
             targetText: "Final submission is due by April 1st",
             targetDocument: "Meeting_Notes.txt",
-            suggestedFix: "Clarify the actual deadline — March 15th and April 1st cannot both be correct."
+            suggestedFix: "Clarify the actual deadline."
         ),
         index: 2,
         allDocumentTitles: ["Meeting_Notes.txt"]
