@@ -55,7 +55,7 @@ struct DemoFlowView: View {
                                     )
                                 )
                         }
-                        .animation(.easeInOut(duration: 0.3), value: step)
+                        // No .animation modifier — all step changes use explicit withAnimation
                         .padding(.horizontal, isCompact ? 20 : 40)
                         .padding(.vertical, 24)
                     }
@@ -102,7 +102,9 @@ struct DemoFlowView: View {
         case .twoDocsAnalyzing:
             IntroductionAnalyzingView(docs: [DemoData.tripDoc, DemoData.teacherDoc]) {
                 goingForward = true
-                if let next = step.nextStep { step = next }
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    if let next = step.nextStep { step = next }
+                }
             }
 
         case .twoDocsResults:
@@ -131,7 +133,9 @@ struct DemoFlowView: View {
         case .singleDocAnalyzing:
             IntroductionAnalyzingView(docs: [DemoData.campDoc]) {
                 goingForward = true
-                if let next = step.nextStep { step = next }
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    if let next = step.nextStep { step = next }
+                }
             }
 
         case .singleDocResults:
@@ -158,7 +162,9 @@ struct DemoFlowView: View {
         case .libraryDocAnalyzing:
             IntroductionAnalyzingView(docs: [DemoData.libraryDoc]) {
                 goingForward = true
-                if let next = step.nextStep { step = next }
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    if let next = step.nextStep { step = next }
+                }
             }
 
         case .libraryDocResults:
@@ -186,7 +192,9 @@ struct DemoFlowView: View {
             if let prev = step.previousStep, !step.isAnalyzing {
                 Button {
                     goingForward = false
-                    step = prev
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        step = prev
+                    }
                 } label: {
                     Label("Back", systemImage: "chevron.left")
                 }
@@ -204,8 +212,10 @@ struct DemoFlowView: View {
             } else {
                 Button {
                     goingForward = true
-                    if let next = step.nextStep {
-                        step = next
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        if let next = step.nextStep {
+                            step = next
+                        }
                     }
                 } label: {
                     Label("Next", systemImage: "chevron.right")

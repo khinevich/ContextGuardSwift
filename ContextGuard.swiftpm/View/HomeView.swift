@@ -1,5 +1,5 @@
 //
-//  SwiftUIView.swift
+//  HomeView.swift
 //  ContextGuard
 //
 //  Created by Mikhail Khinevich on 27.02.26.
@@ -32,6 +32,11 @@ struct HomeView: View {
 
                 if !checker.documents.isEmpty {
                     loadedDocumentsSection
+                }
+
+                // Token limit disclaimer — shown when documents are loaded
+                if !checker.documents.isEmpty {
+                    tokenLimitDisclaimer
                 }
 
                 actionButtonsSection
@@ -90,12 +95,10 @@ struct HomeView: View {
 
                 Spacer()
 
-                // "2 of 3" capacity label
                 Text("\(checker.documents.count) of \(ConsistencyChecker.maxDocuments)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                // iPad: list/grid toggle
                 if !isCompact {
                     Picker("View", selection: $useGridView) {
                         Image(systemName: "list.bullet").tag(false)
@@ -105,7 +108,6 @@ struct HomeView: View {
                     .frame(width: 100)
                 }
 
-                // Clear All button
                 Button(role: .destructive) {
                     showClearConfirmation = true
                 } label: {
@@ -115,7 +117,6 @@ struct HomeView: View {
                 .tint(.red)
             }
 
-            // Content: list or grid
             if useGridView && !isCompact {
                 gridDocumentsView
             } else {
@@ -127,9 +128,11 @@ struct HomeView: View {
 
     // MARK: - List View
 
+    /// Row height: DocumentRowView uses padding(12/16) + minHeight(44/80) + listRowInsets(4+4).
+    /// Compact: ~86pt. Regular: ~105pt (includes preview text line).
     private var listDocumentsView: some View {
-        let rowHeight: CGFloat = isCompact ? 68 : 92
-        let listHeight = CGFloat(checker.documents.count) * rowHeight
+        let rowHeight: CGFloat = isCompact ? 86 : 105
+        let listHeight = CGFloat(checker.documents.count) * rowHeight + 8
 
         return List {
             ForEach(checker.documents, id: \.id) { doc in
@@ -156,6 +159,7 @@ struct HomeView: View {
         .listStyle(.plain)
         .scrollDisabled(true)
         .scrollContentBackground(.hidden)
+        //.contentMargins(.vertical, 0, for: .scrollContent)
         .frame(height: listHeight)
     }
 
@@ -181,6 +185,24 @@ struct HomeView: View {
             }
         }
         .padding(.vertical, 8)
+    }
+
+    // MARK: - Token Limit Disclaimer
+
+    private var tokenLimitDisclaimer: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "info.circle.fill")
+                .font(.subheadline)
+                .foregroundStyle(.blue)
+                .padding(.top, 1)
+
+            Text("The on-device AI has a **4,096-token context window** (~3,000 words). To deliver the most accurate results, document imports are limited to **\(ConsistencyChecker.maxDocuments) files** of 1–3 pages each. Larger documents may not be fully analyzed.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .background(Color.blue.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
+        .padding(.horizontal, layout.horizontalPadding)
     }
 
     // MARK: - Action Buttons
@@ -209,7 +231,7 @@ struct HomeView: View {
             if checker.canAddMore { showFileImporter = true }
         }
         .disabled(!checker.canAddMore)
-        
+
         ActionCard(
             icon: "document.viewfinder",
             title: "Scan Files",
