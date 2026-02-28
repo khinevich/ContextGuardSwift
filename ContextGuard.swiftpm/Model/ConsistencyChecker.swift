@@ -8,6 +8,7 @@
 import Foundation
 import Observation
 import PDFKit
+import FoundationModels
 
 @available(iOS 26.0, *)
 
@@ -140,56 +141,138 @@ class ConsistencyChecker {
     
     // MARK: - Consistency Check
     
+    func buildChunkedText() -> String {
+        var chunks: [String] = []
+        for doc in documents {
+            let paragraphs = doc.content
+                .components(separatedBy: "\n")
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines)}
+                .filter { !$0.isEmpty }
+            for (i, paragraph) in paragraphs.enumerated() {
+                chunks.append("[Doc: \(doc.title), Paragraph \(i+1)]: \(paragraph)")
+            }
+        }
+        return chunks.joined(separator: "\n\n")
+    }
+    
     func runCheck() async {
+        guard !documents.isEmpty else { return }
+
         state = .analyzing
         issues.removeAll()
-        
-        // TODO: Phase 3 — Replace with real LanguageModelSession call
-        // simulate a delay and return mock results for UI development
-        
-        try? await Task.sleep(for: .seconds(2))
-        
-        issues = [
-            ConsistencyIssue(
-                severity: "HIGH",
-                rationale: "The habitat of Emperor penguins is described contradictorily across documents.",
-                sourceText: "They are native to Antarctica",
-                sourceDocument: "DocA_Penguins.txt",
-                targetText: "Emperor penguins are commonly found in the Arctic region",
-                targetDocument: "DocB_Penguins.txt",
-                suggestedFix: "Verify the correct habitat. Emperor penguins are native to Antarctica, not the Arctic."
-            ),
-            ConsistencyIssue(
-                severity: "MEDIUM",
-                rationale: "Temperature preferences are contradictory between documents.",
-                sourceText: "temperatures dropping to minus 60 degrees Celsius",
-                sourceDocument: "DocA_Penguins.txt",
-                targetText: "They prefer moderate temperatures around 5 degrees Celsius",
-                targetDocument: "DocB_Penguins.txt",
-                suggestedFix: "Reconcile temperature claims. Emperor penguins survive extreme cold, not moderate temperatures."
-            ),
-            ConsistencyIssue(
-                severity: "MEDIUM",
-                rationale: "Breeding season is described differently across documents.",
-                sourceText: "breed during the Antarctic winter",
-                sourceDocument: "DocA_Penguins.txt",
-                targetText: "typically breed in the summer months",
-                targetDocument: "DocB_Penguins.txt",
-                suggestedFix: "Confirm breeding season. Emperor penguins breed during the Antarctic winter."
-            ),
-            ConsistencyIssue(
-                severity: "LOW",
-                rationale: "Diet sources differ between documents.",
-                sourceText: "fish, squid, and krill found in the Southern Ocean",
-                sourceDocument: "DocA_Penguins.txt",
-                targetText: "freshwater fish from Arctic rivers and lakes",
-                targetDocument: "DocB_Penguins.txt",
-                suggestedFix: "Align diet descriptions. Emperor penguins feed in the Southern Ocean, not Arctic freshwater."
+
+        // 1. Availability check
+        let model = SystemLanguageModel.default
+        switch model.availability {
+        case .available:
+            break
+        case .unavailable(.appleIntelligenceNotEnabled):
+            state = .failed("Please enable Apple Intelligence in Settings > Apple Intelligence & Siri.")
+            return
+        case .unavailable(.deviceNotEligible):
+            state = .failed("This device does not support Apple Intelligence.")
+            return
+        case .unavailable(.modelNotReady):
+            state = .failed("The AI model is still downloading. Please try again later.")
+            return
+        case .unavailable:
+            state = .failed("Apple Intelligence is not available.")
+            return
+        }
+
+        // 2. Build chunked text from loaded documents
+        let chunkedText = buildChunkedText()
+
+        // 3. Create session with system prompt in instructions
+        let session = LanguageModelSession(instructions: """
+            You are a Semantic Consistency Validator. Find factual contradictions \
+            in the provided document chunks.
+
+            A contradiction: the SAME entity described with CONFLICTING attributes \
+            across different paragraphs or documents.
+
+            Rules:
+            - Only flag genuine factual contradictions, not stylistic differences
+            - Use document names from [Doc: ...] tags for sourceDocument/targetDocument
+            - sourceText/targetText: quote the relevant short phrases, not full paragraphs
+            - Severity: HIGH = direct factual conflict, MEDIUM = numerical/temporal, LOW = minor
+            - If no contradictions exist, return an empty array
+
+            Do NOT flag: different wording saying the same thing, one document \
+            having more detail, or subjective statements.
+            """)
+
+        // 4. Guided generation — response.content is [ConsistencyIssue]
+        do {
+            let response = try await session.respond(
+                to: chunkedText,
+                generating: [ConsistencyIssue].self
             )
-        ]
-        
-        state = .completed
+            issues = response.content
+            state = .completed
+        } catch let error as LanguageModelSession.GenerationError {
+            switch error {
+            case .exceededContextWindowSize:
+                state = .failed("Documents are too long. Try shorter documents or fewer files.")
+            case .guardrailViolation:
+                state = .failed("Content triggered a safety filter. Try different documents.")
+            default:
+                state = .failed("Analysis failed: \(error.localizedDescription)")
+            }
+        } catch {
+            state = .failed("Unexpected error: \(error.localizedDescription)")
+        }
     }
+//    func runCheck() async {
+//        state = .analyzing
+//        issues.removeAll()
+//        
+//        // TODO: Phase 3 — Replace with real LanguageModelSession call
+//        // simulate a delay and return mock results for UI development
+//        
+//        try? await Task.sleep(for: .seconds(2))
+//        
+//        issues = [
+//            ConsistencyIssue(
+//                severity: "HIGH",
+//                rationale: "The habitat of Emperor penguins is described contradictorily across documents.",
+//                sourceText: "They are native to Antarctica",
+//                sourceDocument: "DocA_Penguins.txt",
+//                targetText: "Emperor penguins are commonly found in the Arctic region",
+//                targetDocument: "DocB_Penguins.txt",
+//                suggestedFix: "Verify the correct habitat. Emperor penguins are native to Antarctica, not the Arctic."
+//            ),
+//            ConsistencyIssue(
+//                severity: "MEDIUM",
+//                rationale: "Temperature preferences are contradictory between documents.",
+//                sourceText: "temperatures dropping to minus 60 degrees Celsius",
+//                sourceDocument: "DocA_Penguins.txt",
+//                targetText: "They prefer moderate temperatures around 5 degrees Celsius",
+//                targetDocument: "DocB_Penguins.txt",
+//                suggestedFix: "Reconcile temperature claims. Emperor penguins survive extreme cold, not moderate temperatures."
+//            ),
+//            ConsistencyIssue(
+//                severity: "MEDIUM",
+//                rationale: "Breeding season is described differently across documents.",
+//                sourceText: "breed during the Antarctic winter",
+//                sourceDocument: "DocA_Penguins.txt",
+//                targetText: "typically breed in the summer months",
+//                targetDocument: "DocB_Penguins.txt",
+//                suggestedFix: "Confirm breeding season. Emperor penguins breed during the Antarctic winter."
+//            ),
+//            ConsistencyIssue(
+//                severity: "LOW",
+//                rationale: "Diet sources differ between documents.",
+//                sourceText: "fish, squid, and krill found in the Southern Ocean",
+//                sourceDocument: "DocA_Penguins.txt",
+//                targetText: "freshwater fish from Arctic rivers and lakes",
+//                targetDocument: "DocB_Penguins.txt",
+//                suggestedFix: "Align diet descriptions. Emperor penguins feed in the Southern Ocean, not Arctic freshwater."
+//            )
+//        ]
+//        
+//        state = .completed
+//    }
     
     // MARK: - Export
     func exportAsText() -> String {

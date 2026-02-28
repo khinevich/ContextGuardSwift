@@ -42,6 +42,7 @@ struct ActionCard: View {
 
 // MARK: - Issue Card (Results Screen)
 
+@available(iOS 26.0, *)
 struct IssueCard: View {
     let issue: ConsistencyIssue
     let index: Int
@@ -224,7 +225,7 @@ struct IssueCard: View {
 }
 
 // MARK: - Previews
-
+@available(iOS 26.0, *)
 #Preview("Action Cards — iPad") {
     HStack(spacing: 20) {
         ActionCard(icon: "folder.badge.plus", title: "Select Files", subtitle: "Import .txt or .pdf", color: .blue) {}
@@ -233,6 +234,7 @@ struct IssueCard: View {
     .padding(40)
 }
 
+@available(iOS 26.0, *)
 #Preview("Issue Card — HIGH") {
     IssueCard(
         issue: ConsistencyIssue(
@@ -249,6 +251,7 @@ struct IssueCard: View {
     .padding(40)
 }
 
+@available(iOS 26.0, *)
 #Preview("Issue Card — LOW") {
     IssueCard(
         issue: ConsistencyIssue(
@@ -265,6 +268,7 @@ struct IssueCard: View {
     .padding(40)
 }
 
+@available(iOS 26.0, *)
 #Preview("Same Document Issue - MEDIUM") {
     IssueCard(
         issue: ConsistencyIssue(
