@@ -82,9 +82,10 @@ struct ResultsView: View {
     // MARK: - Issues List
     
     private var issuesList: some View {
-        VStack(spacing: 16) {
+        let allTitles = checker.documents.map { $0.title }
+        return VStack(spacing: 16) {
             ForEach(Array(checker.issues.enumerated()), id: \.offset) { index, issue in
-                IssueCard(issue: issue, index: index + 1)
+                IssueCard(issue: issue, index: index + 1, allDocumentTitles: allTitles)
             }
         }
     }

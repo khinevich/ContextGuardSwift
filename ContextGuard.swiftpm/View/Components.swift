@@ -1,5 +1,5 @@
 //
-//  SwiftUIView.swift
+//  Components.swift
 //  ContextGuard
 //
 //  Created by Mikhail Khinevich on 27.02.26.
@@ -7,7 +7,37 @@
 
 import SwiftUI
 
-// MARK: - Action Card (Home Screen Buttons)
+// MARK: - Document Color Registry
+
+struct DocumentColorRegistry {
+    static let palette: [Color] = [
+        Color(red: 0.37, green: 0.55, blue: 0.85),
+        Color(red: 0.55, green: 0.40, blue: 0.80),
+        Color(red: 0.25, green: 0.65, blue: 0.65),
+        Color(red: 0.80, green: 0.50, blue: 0.25),
+        Color(red: 0.45, green: 0.65, blue: 0.40),
+    ]
+
+    private static func uniqueOrdered(_ titles: [String]) -> [String] {
+        var seen = Set<String>()
+        return titles.filter { seen.insert($0).inserted }
+    }
+
+    static func color(for title: String, among allTitles: [String]) -> Color {
+        let ordered = uniqueOrdered(allTitles)
+        let index = ordered.firstIndex(of: title) ?? 0
+        return palette[index % palette.count]
+    }
+
+    static func label(for title: String, among allTitles: [String]) -> String {
+        let ordered = uniqueOrdered(allTitles)
+        let index = ordered.firstIndex(of: title) ?? 0
+        let letter = String(UnicodeScalar(UInt32(65 + index % 26))!)
+        return "Document \(letter)"
+    }
+}
+
+// MARK: - Action Card
 
 struct ActionCard: View {
     let icon: String
@@ -15,18 +45,18 @@ struct ActionCard: View {
     let subtitle: String
     let color: Color
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             VStack(spacing: 12) {
                 Image(systemName: icon)
                     .font(.system(size: 32))
                     .foregroundStyle(color)
-                
+
                 Text(title)
                     .font(.headline)
                     .foregroundStyle(.primary)
-                
+
                 Text(subtitle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -40,36 +70,50 @@ struct ActionCard: View {
     }
 }
 
-// MARK: - Issue Card (Results Screen)
+// MARK: - Issue Card
 
 @available(iOS 26.0, *)
 struct IssueCard: View {
     let issue: ConsistencyIssue
     let index: Int
-    
+    let allDocumentTitles: [String]
+
     @State private var isExpanded = true
     @Environment(\.horizontalSizeClass) private var sizeClass
-    
+
     private var isCompact: Bool { sizeClass == .compact }
-    
-    var severityColor: Color {
+
+    private var severityColor: Color {
         switch issue.severity.uppercased() {
-        case "HIGH": return .red
+        case "HIGH":   return .red
         case "MEDIUM": return .orange
-        case "LOW": return Color(red: 0.82, green: 0.68, blue: 0.15)
-        default: return .gray
+        case "LOW":    return Color(red: 0.82, green: 0.68, blue: 0.15)
+        default:       return .gray
         }
     }
-    
-    var severityIcon: String {
+
+    private var severityIcon: String {
         switch issue.severity.uppercased() {
-        case "HIGH": return "exclamationmark"
+        case "HIGH":   return "exclamationmark"
         case "MEDIUM": return "exclamationmark"
-        case "LOW": return "exclamationmark"
-        default: return "questionmark"
+        case "LOW":    return "exclamationmark"
+        default:       return "questionmark"
         }
     }
-    
+
+    private var sourceColor: Color {
+        DocumentColorRegistry.color(for: issue.sourceDocument, among: allDocumentTitles)
+    }
+    private var targetColor: Color {
+        DocumentColorRegistry.color(for: issue.targetDocument, among: allDocumentTitles)
+    }
+    private var sourceLabel: String {
+        DocumentColorRegistry.label(for: issue.sourceDocument, among: allDocumentTitles)
+    }
+    private var targetLabel: String {
+        DocumentColorRegistry.label(for: issue.targetDocument, among: allDocumentTitles)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
@@ -80,7 +124,7 @@ struct IssueCard: View {
                 header
             }
             .buttonStyle(.plain)
-            
+
             if isExpanded {
                 Divider()
                 expandedContent
@@ -92,9 +136,7 @@ struct IssueCard: View {
                 .strokeBorder(severityColor.opacity(0.3), lineWidth: 1)
         )
     }
-    
-    // MARK: - Header
-    
+
     private var header: some View {
         HStack(spacing: 12) {
             Image(systemName: severityIcon)
@@ -102,26 +144,26 @@ struct IssueCard: View {
                 .foregroundStyle(.white)
                 .frame(width: 32, height: 32)
                 .background(severityColor, in: RoundedRectangle(cornerRadius: 8))
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 Text("Issue #\(index)")
                     .font(.subheadline.weight(.medium))
-                
+
                 Text(issue.rationale)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(isExpanded ? nil : 1)
             }
-            
+
             Spacer()
-            
+
             Text(issue.severity.uppercased())
                 .font(.caption2.bold())
                 .foregroundStyle(severityColor)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(severityColor.opacity(0.12), in: Capsule())
-            
+
             Image(systemName: "chevron.right")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
@@ -129,9 +171,7 @@ struct IssueCard: View {
         }
         .padding(16)
     }
-    
-    // MARK: - Expanded Content
-    
+
     private var expandedContent: some View {
         VStack(alignment: .leading, spacing: 16) {
             contradictionComparison
@@ -139,62 +179,56 @@ struct IssueCard: View {
         }
         .padding(16)
     }
-    
+
     @ViewBuilder
     private var contradictionComparison: some View {
         if isCompact {
-            // iPhone: stack vertically
             VStack(spacing: 12) {
                 contradictionBlock(
-                    label: "Source",
+                    label: sourceLabel,
                     document: issue.sourceDocument,
                     text: issue.sourceText,
-                    color: .red
+                    color: sourceColor
                 )
-                
                 Image(systemName: "arrow.up.arrow.down")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
-                
                 contradictionBlock(
-                    label: "Target",
+                    label: targetLabel,
                     document: issue.targetDocument,
                     text: issue.targetText,
-                    color: .blue
+                    color: targetColor
                 )
             }
         } else {
-            // iPad: side by side
             HStack(alignment: .top, spacing: 12) {
                 contradictionBlock(
-                    label: "Source",
+                    label: sourceLabel,
                     document: issue.sourceDocument,
                     text: issue.sourceText,
-                    color: .red
+                    color: sourceColor
                 )
-                
                 Image(systemName: "arrow.left.arrow.right")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .padding(.top, 24)
-                
+                    .padding(.top, 28)
                 contradictionBlock(
-                    label: "Target",
+                    label: targetLabel,
                     document: issue.targetDocument,
                     text: issue.targetText,
-                    color: .blue
+                    color: targetColor
                 )
             }
         }
     }
-    
+
     private var suggestedFixSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             Label("Suggested Fix", systemImage: "lightbulb.fill")
                 .font(.caption.bold())
                 .foregroundStyle(.green)
-            
+
             Text(issue.suggestedFix)
                 .font(.callout)
                 .padding(12)
@@ -202,17 +236,17 @@ struct IssueCard: View {
                 .background(.green.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
         }
     }
-    
+
     private func contradictionBlock(label: String, document: String, text: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label.uppercased())
                 .font(.caption2.bold())
                 .foregroundStyle(color)
-            
+
             Text(document)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            
+
             Text("\"\(text)\"")
                 .font(.callout)
                 .italic()
@@ -225,8 +259,9 @@ struct IssueCard: View {
 }
 
 // MARK: - Previews
+
 @available(iOS 26.0, *)
-#Preview("Action Cards — iPad") {
+#Preview("Action Cards") {
     HStack(spacing: 20) {
         ActionCard(icon: "folder.badge.plus", title: "Select Files", subtitle: "Import .txt or .pdf", color: .blue) {}
         ActionCard(icon: "camera.viewfinder", title: "Scan Paper", subtitle: "Use iPad camera", color: .green) {}
@@ -246,7 +281,8 @@ struct IssueCard: View {
             targetDocument: "DocB_Penguins.txt",
             suggestedFix: "Verify the correct habitat. Emperor penguins are native to Antarctica, not the Arctic."
         ),
-        index: 1
+        index: 1,
+        allDocumentTitles: ["DocA_Penguins.txt", "DocB_Penguins.txt"]
     )
     .padding(40)
 }
@@ -263,13 +299,14 @@ struct IssueCard: View {
             targetDocument: "DocB_Penguins.txt",
             suggestedFix: "Align diet descriptions. Emperor penguins feed in the Southern Ocean, not Arctic freshwater."
         ),
-        index: 3
+        index: 3,
+        allDocumentTitles: ["DocA_Penguins.txt", "DocB_Penguins.txt"]
     )
     .padding(40)
 }
 
 @available(iOS 26.0, *)
-#Preview("Same Document Issue - MEDIUM") {
+#Preview("Same Document — MEDIUM") {
     IssueCard(
         issue: ConsistencyIssue(
             severity: "MEDIUM",
@@ -280,7 +317,8 @@ struct IssueCard: View {
             targetDocument: "Meeting_Notes.txt",
             suggestedFix: "Clarify the actual deadline — March 15th and April 1st cannot both be correct."
         ),
-        index: 2
+        index: 2,
+        allDocumentTitles: ["Meeting_Notes.txt"]
     )
     .padding(40)
 }

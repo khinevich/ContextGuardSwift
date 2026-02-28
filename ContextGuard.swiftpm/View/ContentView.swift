@@ -48,10 +48,14 @@ struct ContentView: View {
         .fileImporter(
             isPresented: $showFileImporter,
             allowedContentTypes: [.plainText, .pdf],
-            allowsMultipleSelection: true
+            allowsMultipleSelection: checker.remainingSlots > 1
         ) { result in
-            if case .success(let urls) = result {
-                checker.importFiles(from: urls)
+            switch result {
+            case .success(let urls):
+                let capped = Array(urls.prefix(checker.remainingSlots))
+                checker.importFiles(from: capped)
+            case .failure:
+                break
             }
         }
         .fullScreenCover(isPresented: $showScanner) {

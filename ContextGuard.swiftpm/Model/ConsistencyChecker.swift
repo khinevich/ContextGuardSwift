@@ -26,11 +26,11 @@ class ConsistencyChecker {
     
     /// True when we haven't hit the document cap yet.
     var canAddMore: Bool {
-        documents.count < Self.maxDocuments
+        remainingSlots > 0
     }
     /// How many slots remain — useful for UI labels like "2 of 3 slots used".
     var remainingSlots: Int {
-        max(0, Self.maxDocuments - documents.count)
+        Self.maxDocuments - documents.count
     }
     
     func addDocument(_ document: Document) {
@@ -51,9 +51,11 @@ class ConsistencyChecker {
     // MARK: - File Import
     
     func importFiles(from urls: [URL]) {
-        // NOTE - enable max select for 3 elements for now
-        for url in urls {
-            guard canAddMore else { break }
+        let available = Self.maxDocuments - documents.count
+        guard available > 0 else { return }
+
+        let accepted = urls.prefix(available)
+        for url in accepted {
             if let document = loadDocument(from: url) {
                 addDocument(document)
             }
@@ -114,28 +116,91 @@ class ConsistencyChecker {
         
         // Fallback: if resource files are not yet created, use inline text
         if documents.isEmpty {
+            // DOCUMENT 1: The Permission Slip
             addDocument(Document(
                 id: UUID(),
-                title: "DocA_Penguins.txt",
+                title: "Science_Museum_Trip.txt",
                 content: """
-                Emperor penguins are the tallest of all penguin species, reaching nearly 4 feet in height. \
-                They are native to Antarctica, where they endure harsh winters with temperatures dropping to \
-                minus 60 degrees Celsius. Emperor penguins breed during the Antarctic winter, with males \
-                incubating eggs on their feet for over two months. Their diet consists primarily of fish, \
-                squid, and krill found in the Southern Ocean.
+                SUMMER SCHOOL TRIP: SCIENCE MUSEUM
+                
+                Dear Parents,
+                We are excited to go on a trip to the Science Museum in the city center. \
+                The bus will leave from the school gate on Monday, June 1st at 8:00 AM. \
+                We will return to the school by 3:30 PM on the same day.
+                
+                WHAT TO BRING:
+                - The cost of the trip is $15 per student.
+                - Please bring a packed lunch from home. The museum cafe is currently closed.
+                - Students must wear their blue school uniform so we can stay together.
+                
+                GOAL:
+                The goal is to learn about space and the planets. This trip is part of our \
+                science class. We hope every student can join us for this fun day of learning!
+                """
+            ))
+
+            // DOCUMENT 2: The Teacher's Note (CONTRADICTORY)
+            addDocument(Document(
+                id: UUID(),
+                title: "Teacher_Trip_Update.txt",
+                content: """
+                TRIP UPDATE: WATER PARK ADVENTURE
+                
+                Hi Class,
+                Here is the final plan for our big trip to the Water Park at the beach! \
+                The train leaves from the station on Wednesday, June 3rd at 10:00 AM. \
+                We will get back to the school very late, around 7:00 PM.
+                
+                COST AND FOOD:
+                - The price is $30 for each person. This includes your ticket and a locker.
+                - You do not need to bring food. We will all eat lunch together at the \
+                park restaurant. The meal is included in the price.
+                
+                CLOTHING:
+                - Please wear your favorite swimming clothes and a bright t-shirt.
+                - Do not wear your school uniform because it will get wet and messy.
+                
+                Wait for the final bell before you leave the school. See you at the train!
                 """
             ))
             
-            addDocument(Document(
-                id: UUID(),
-                title: "DocB_Penguins.txt",
-                content: """
-                Emperor penguins are commonly found in the Arctic region, where they coexist with polar bears \
-                and other Arctic wildlife. They prefer moderate temperatures around 5 degrees Celsius and avoid \
-                extreme cold. Emperor penguins typically breed in the summer months and their eggs are incubated \
-                in ground nests. Their primary food source is freshwater fish from Arctic rivers and lakes.
-                """
-            ))
+//            // DOCUMENT 3: Summer_Camp_Rules.txt
+//            addDocument(Document(
+//                id: UUID(),
+//                title: "Summer_Camp_Guide.txt",
+//                content: """
+//                WELCOME TO THE 5-DAY ART CAMP
+//                
+//                CAMP OVERVIEW:
+//                This camp is designed to help you be creative. Our camp lasts for five full days, \
+//                from Monday until Friday. We have a lot of fun activities planned for you!
+//                
+//                WEEKLY SCHEDULE:
+//                Day 1: Painting with water colors in the garden.
+//                Day 2: Making bowls out of wet clay.
+//                Day 3: Drawing animals with colored pencils.
+//                (This is the end of our activity list for the week).
+//                
+//                CAMP RULES:
+//                - You must always wear a sun hat when you are outside.
+//                - No candy, soda, or sugary snacks are allowed in the camp building.
+//                - You do not need to bring any extra money with you.
+//                
+//                THE CAMP SHOP:
+//                - The shop is open every afternoon for students to buy snacks.
+//                - Please bring $5 every day so you can buy candy and soda for your friends.
+//                - Hats are not allowed at camp. Do not bring a hat inside or outside.
+//                
+//                GRADING AND PRIZES:
+//                At the end of the week, everyone gets a "Gold Star" for finishing. \
+//                Please note: There are no tests at this camp. We just want you to have fun.
+//                
+//                FINAL TEST DETAILS:
+//                - The final exam is on Friday afternoon in the main hall. 
+//                - You must pass this test to get your "Gold Star." 
+//                - Bring a pen and paper for the writing part of the exam.
+//                """
+//            ))
         }
     }
     
