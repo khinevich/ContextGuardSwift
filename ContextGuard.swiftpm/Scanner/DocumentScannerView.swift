@@ -26,6 +26,7 @@ struct DocumentScannerView: UIViewControllerRepresentable {
         Coordinator(onScan: onScan, onCancel: onCancel)
     }
     
+    @MainActor
     class Coordinator: NSObject, @MainActor VNDocumentCameraViewControllerDelegate {
         let onScan: (String) -> Void
         let onCancel: () -> Void
@@ -35,7 +36,7 @@ struct DocumentScannerView: UIViewControllerRepresentable {
             self.onCancel = onCancel
         }
         
-        @MainActor func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFinishWith scan: VNDocumentCameraScan) {
+        func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFinishWith scan: VNDocumentCameraScan) {
             
             var fullText = ""
             
@@ -64,11 +65,11 @@ struct DocumentScannerView: UIViewControllerRepresentable {
             onScan(fullText)
         }
         
-        @MainActor func documentCameraViewControllerDidCancel(_ controller: VNDocumentCameraViewController) {
+        func documentCameraViewControllerDidCancel(_ controller: VNDocumentCameraViewController) {
             onCancel()
         }
         
-        @MainActor func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFailWithError error: Error) {
+        func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFailWithError error: Error) {
             print("Scanner failed with error: \(error.localizedDescription)")
             onCancel()
         }

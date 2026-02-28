@@ -24,13 +24,6 @@ struct DocumentColorRegistry {
         let index = ordered.firstIndex(of: title) ?? 0
         return palette[index % palette.count]
     }
-
-    static func label(for title: String, among allTitles: [String]) -> String {
-        let ordered = uniqueOrdered(allTitles)
-        let index = ordered.firstIndex(of: title) ?? 0
-        let letter = String(UnicodeScalar(UInt32(65 + index % 26))!)
-        return "Document \(letter)"
-    }
 }
 
 // MARK: - Action Card
@@ -91,10 +84,8 @@ struct IssueCard: View {
 
     private var severityIcon: String {
         switch issue.severity.uppercased() {
-        case "HIGH":   return "exclamationmark.3"
-        case "MEDIUM": return "exclamationmark.2"
-        case "LOW":    return "exclamationmark"
-        default:       return "questionmark"
+        case "HIGH", "MEDIUM", "LOW": return "exclamationmark"
+        default: return "questionmark"
         }
     }
 
@@ -104,12 +95,6 @@ struct IssueCard: View {
     }
     private var targetColor: Color {
         DocumentColorRegistry.color(for: issue.targetDocument, among: allDocumentTitles)
-    }
-    private var sourceLabel: String {
-        DocumentColorRegistry.label(for: issue.sourceDocument, among: allDocumentTitles)
-    }
-    private var targetLabel: String {
-        DocumentColorRegistry.label(for: issue.targetDocument, among: allDocumentTitles)
     }
 
     // MARK: Body
@@ -190,7 +175,7 @@ struct IssueCard: View {
             VStack(spacing: 12) {
                 contradictionBlock(
                     documentTitle: issue.sourceDocument,
-                    documentLabel: sourceLabel,
+                    paragraph: issue.sourceParagraph,
                     text: issue.sourceText,
                     color: sourceColor
                 )
@@ -200,7 +185,7 @@ struct IssueCard: View {
                     .frame(maxWidth: .infinity)
                 contradictionBlock(
                     documentTitle: issue.targetDocument,
-                    documentLabel: targetLabel,
+                    paragraph: issue.targetParagraph,
                     text: issue.targetText,
                     color: targetColor
                 )
@@ -209,7 +194,7 @@ struct IssueCard: View {
             HStack(alignment: .top, spacing: 12) {
                 contradictionBlock(
                     documentTitle: issue.sourceDocument,
-                    documentLabel: sourceLabel,
+                    paragraph: issue.sourceParagraph,
                     text: issue.sourceText,
                     color: sourceColor
                 )
@@ -219,7 +204,7 @@ struct IssueCard: View {
                     .padding(.top, 28)
                 contradictionBlock(
                     documentTitle: issue.targetDocument,
-                    documentLabel: targetLabel,
+                    paragraph: issue.targetParagraph,
                     text: issue.targetText,
                     color: targetColor
                 )
@@ -243,22 +228,22 @@ struct IssueCard: View {
 
     /// Each contradiction block shows:
     /// 1. **Filename** — big title, colored (the primary identifier)
-    /// 2. **Document A** — small subtitle, colored (consistent label)
+    /// 2. **Paragraph N** — small subtitle showing chunk location
     /// 3. **Quoted text** — the contradicting passage
     private func contradictionBlock(
         documentTitle: String,
-        documentLabel: String,
+        paragraph: Int,
         text: String,
         color: Color
     ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Big title: actual filename, colored to match this document everywhere
+            // Filename only, colored to match this document everywhere
             Text(documentTitle)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(color)
 
-            // Subtitle: "Document A" / "Document B" — same letter everywhere
-            Text(documentLabel)
+            // Paragraph location from chunk data
+            Text("Paragraph \(paragraph)")
                 .font(.caption2.bold())
                 .foregroundStyle(color.opacity(0.7))
 
@@ -295,7 +280,9 @@ struct IssueCard: View {
             sourceDocument: "DocA_Penguins.txt",
             targetText: "Emperor penguins are commonly found in the Arctic region",
             targetDocument: "DocB_Penguins.txt",
-            suggestedFix: "Verify the correct habitat. Emperor penguins are native to Antarctica, not the Arctic."
+            suggestedFix: "Verify the correct habitat. Emperor penguins are native to Antarctica, not the Arctic.",
+            sourceParagraph: 1,
+            targetParagraph: 2
         ),
         index: 1,
         allDocumentTitles: ["DocA_Penguins.txt", "DocB_Penguins.txt"]
@@ -313,7 +300,9 @@ struct IssueCard: View {
             sourceDocument: "Meeting_Notes.txt",
             targetText: "Final submission is due by April 1st",
             targetDocument: "Meeting_Notes.txt",
-            suggestedFix: "Clarify the actual deadline."
+            suggestedFix: "Clarify the actual deadline.",
+            sourceParagraph: 2,
+            targetParagraph: 5
         ),
         index: 2,
         allDocumentTitles: ["Meeting_Notes.txt"]

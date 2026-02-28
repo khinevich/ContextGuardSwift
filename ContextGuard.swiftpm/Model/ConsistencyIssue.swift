@@ -33,6 +33,12 @@ struct ConsistencyIssue {
 
     @Guide(description: "How to fix this contradiction")
     var suggestedFix: String
+
+    @Guide(description: "Paragraph number from the source document (from [Doc: ..., Paragraph N] tag)")
+    var sourceParagraph: Int
+
+    @Guide(description: "Paragraph number from the target document (from [Doc: ..., Paragraph N] tag)")
+    var targetParagraph: Int
 }
 
 #else
@@ -46,6 +52,8 @@ struct ConsistencyIssue {
     var targetText: String
     var targetDocument: String
     var suggestedFix: String
+    var sourceParagraph: Int
+    var targetParagraph: Int
 }
 
 #endif

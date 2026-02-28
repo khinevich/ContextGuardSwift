@@ -109,7 +109,9 @@ struct ResultsView: View {
                         sourceDocument: "DocA_Penguins.txt",
                         targetText: "Emperor penguins are commonly found in the Arctic region",
                         targetDocument: "DocB_Penguins.txt",
-                        suggestedFix: "Emperor penguins are native to Antarctica, not the Arctic."
+                        suggestedFix: "Emperor penguins are native to Antarctica, not the Arctic.",
+                        sourceParagraph: 1,
+                        targetParagraph: 2
                     ),
                     ConsistencyIssue(
                         severity: "LOW",
@@ -118,7 +120,9 @@ struct ResultsView: View {
                         sourceDocument: "DocA_Penguins.txt",
                         targetText: "freshwater fish from Arctic rivers and lakes",
                         targetDocument: "DocB_Penguins.txt",
-                        suggestedFix: "Emperor penguins feed in the Southern Ocean."
+                        suggestedFix: "Emperor penguins feed in the Southern Ocean.",
+                        sourceParagraph: 3,
+                        targetParagraph: 4
                     )
                 ]
             }

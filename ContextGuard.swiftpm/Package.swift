@@ -8,19 +8,19 @@ import PackageDescription
 import AppleProductTypes
 
 let package = Package(
-    name: "ContextGuard",
+    name: "Context Guard",
     platforms: [
         .iOS("16.0")
     ],
     products: [
         .iOSApplication(
-            name: "ContextGuard",
+            name: "Context Guard",
             targets: ["AppModule"],
             bundleIdentifier: "com.khinevich.ContextGuard",
             teamIdentifier: "MJZN9N33M2",
             displayVersion: "1.0",
             bundleVersion: "1",
-            appIcon: .placeholder(icon: .paper),
+            appIcon: .asset("AppIcon"),
             accentColor: .presetColor(.blue),
             supportedDeviceFamilies: [
                 .pad,

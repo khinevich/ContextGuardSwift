@@ -220,7 +220,9 @@ class ConsistencyChecker {
 
             Rules:
             - Only flag genuine factual contradictions, not stylistic differences
-            - Use document names from [Doc: ...] tags for sourceDocument/targetDocument
+            - Use document names from [Doc: ...] tags for sourceDocument/targetDocument \
+              (use ONLY the filename, e.g. "File.txt", never include "Doc:" prefix)
+            - sourceParagraph/targetParagraph: the paragraph number N from [Doc: ..., Paragraph N]
             - sourceText/targetText: quote the relevant short phrases, not full paragraphs
             - Severity: HIGH = direct factual conflict, MEDIUM = numerical/temporal, LOW = minor
             - If no contradictions exist, return an empty array
@@ -274,7 +276,9 @@ class ConsistencyChecker {
                     sourceDocument: "Science_Museum_Trip.txt",
                     targetText: "trip to the Water Park at the beach",
                     targetDocument: "Teacher_Trip_Update.txt",
-                    suggestedFix: "Confirm the actual destination — Science Museum or Water Park — and update both documents."
+                    suggestedFix: "Confirm the actual destination — Science Museum or Water Park — and update both documents.",
+                    sourceParagraph: 2,
+                    targetParagraph: 2
                 ),
                 ConsistencyIssue(
                     severity: "MEDIUM",
@@ -283,7 +287,9 @@ class ConsistencyChecker {
                     sourceDocument: "Science_Museum_Trip.txt",
                     targetText: "Wednesday, June 3rd at 10:00 AM",
                     targetDocument: "Teacher_Trip_Update.txt",
-                    suggestedFix: "Align the trip date — parents need one consistent date and time."
+                    suggestedFix: "Align the trip date — parents need one consistent date and time.",
+                    sourceParagraph: 2,
+                    targetParagraph: 2
                 ),
                 ConsistencyIssue(
                     severity: "MEDIUM",
@@ -292,7 +298,9 @@ class ConsistencyChecker {
                     sourceDocument: "Science_Museum_Trip.txt",
                     targetText: "You do not need to bring food. We will all eat lunch together",
                     targetDocument: "Teacher_Trip_Update.txt",
-                    suggestedFix: "Clarify whether students should pack lunch or if food is provided."
+                    suggestedFix: "Clarify whether students should pack lunch or if food is provided.",
+                    sourceParagraph: 4,
+                    targetParagraph: 4
                 ),
                 ConsistencyIssue(
                     severity: "MEDIUM",
@@ -301,7 +309,9 @@ class ConsistencyChecker {
                     sourceDocument: "Science_Museum_Trip.txt",
                     targetText: "Do not wear your school uniform because it will get wet",
                     targetDocument: "Teacher_Trip_Update.txt",
-                    suggestedFix: "Specify one dress code — school uniform or swimming clothes."
+                    suggestedFix: "Specify one dress code — school uniform or swimming clothes.",
+                    sourceParagraph: 5,
+                    targetParagraph: 7
                 ),
             ]
         } else if allContent.contains("sun hat") && allContent.contains("Hats are not allowed") {
@@ -315,7 +325,9 @@ class ConsistencyChecker {
                     sourceDocument: docTitle,
                     targetText: "bring $5 every day so you can buy candy and soda",
                     targetDocument: docTitle,
-                    suggestedFix: "Decide whether candy and soda are banned or sold."
+                    suggestedFix: "Decide whether candy and soda are banned or sold.",
+                    sourceParagraph: 3,
+                    targetParagraph: 7
                 ),
                 ConsistencyIssue(
                     severity: "HIGH",
@@ -324,7 +336,9 @@ class ConsistencyChecker {
                     sourceDocument: docTitle,
                     targetText: "Hats are not allowed at camp",
                     targetDocument: docTitle,
-                    suggestedFix: "Clarify whether hats are required or banned."
+                    suggestedFix: "Clarify whether hats are required or banned.",
+                    sourceParagraph: 4,
+                    targetParagraph: 8
                 ),
                 ConsistencyIssue(
                     severity: "HIGH",
@@ -333,7 +347,9 @@ class ConsistencyChecker {
                     sourceDocument: docTitle,
                     targetText: "The final exam is on Friday afternoon",
                     targetDocument: docTitle,
-                    suggestedFix: "Remove either the 'no tests' claim or the final exam details."
+                    suggestedFix: "Remove either the 'no tests' claim or the final exam details.",
+                    sourceParagraph: 5,
+                    targetParagraph: 9
                 ),
             ]
         } else {
@@ -362,9 +378,9 @@ class ConsistencyChecker {
         for (index, issue) in issues.enumerated() {
             report += "Issue #\(index + 1) [\(issue.severity.uppercased())]\n"
             report += issue.rationale + "\n\n"
-            report += "  \(issue.sourceDocument):\n"
+            report += "  \(issue.sourceDocument), Paragraph \(issue.sourceParagraph):\n"
             report += "  \"\(issue.sourceText)\"\n\n"
-            report += "  \(issue.targetDocument):\n"
+            report += "  \(issue.targetDocument), Paragraph \(issue.targetParagraph):\n"
             report += "  \"\(issue.targetText)\"\n\n"
             report += "  Suggested Fix: \(issue.suggestedFix)\n"
             report += String(repeating: "-", count: 40) + "\n\n"

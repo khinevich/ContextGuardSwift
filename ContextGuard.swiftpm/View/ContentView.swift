@@ -37,7 +37,7 @@ struct ContentView: View {
             .toolbar {
                 if checker.state != .idle && checker.state != .analyzing {
                     ToolbarItem(placement: .topBarLeading) {
-                        Button("Start Over") {
+                        Button("Reset") {
                             withAnimation { checker.clear() }
                         }
                         .buttonStyle(.borderedProminent)
