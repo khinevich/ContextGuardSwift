@@ -2,8 +2,8 @@ import SwiftUI
 
 // MARK: - Document Color Registry
 
-/// Assigns consistent neutral colors and labels (Document A, B, C...) to documents.
-/// The same filename always gets the same color and letter across all issue cards.
+/// Assigns consistent neutral colors to documents.
+/// The same filename always gets the same color across all issue cards.
 struct DocumentColorRegistry {
     /// Neutral palette — avoids red/orange/yellow which are reserved for severity.
     static let palette: [Color] = [
@@ -175,7 +175,6 @@ struct IssueCard: View {
             VStack(spacing: 12) {
                 contradictionBlock(
                     documentTitle: issue.sourceDocument,
-                    paragraph: issue.sourceParagraph,
                     text: issue.sourceText,
                     color: sourceColor
                 )
@@ -185,7 +184,6 @@ struct IssueCard: View {
                     .frame(maxWidth: .infinity)
                 contradictionBlock(
                     documentTitle: issue.targetDocument,
-                    paragraph: issue.targetParagraph,
                     text: issue.targetText,
                     color: targetColor
                 )
@@ -194,7 +192,6 @@ struct IssueCard: View {
             HStack(alignment: .top, spacing: 12) {
                 contradictionBlock(
                     documentTitle: issue.sourceDocument,
-                    paragraph: issue.sourceParagraph,
                     text: issue.sourceText,
                     color: sourceColor
                 )
@@ -204,7 +201,6 @@ struct IssueCard: View {
                     .padding(.top, 28)
                 contradictionBlock(
                     documentTitle: issue.targetDocument,
-                    paragraph: issue.targetParagraph,
                     text: issue.targetText,
                     color: targetColor
                 )
@@ -228,26 +224,17 @@ struct IssueCard: View {
 
     /// Each contradiction block shows:
     /// 1. **Filename** — big title, colored (the primary identifier)
-    /// 2. **Paragraph N** — small subtitle showing chunk location
-    /// 3. **Quoted text** — the contradicting passage
+    /// 2. **Quoted text** — the contradicting passage
     private func contradictionBlock(
         documentTitle: String,
-        paragraph: Int,
         text: String,
         color: Color
     ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Filename only, colored to match this document everywhere
             Text(documentTitle)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(color)
 
-            // Paragraph location from chunk data
-            Text("Paragraph \(paragraph)")
-                .font(.caption2.bold())
-                .foregroundStyle(color.opacity(0.7))
-
-            // Quoted contradicting text
             Text("\"\(text)\"")
                 .font(.callout)
                 .italic()
@@ -278,11 +265,9 @@ struct IssueCard: View {
             rationale: "The habitat of Emperor penguins is described contradictorily across documents.",
             sourceText: "They are native to Antarctica",
             sourceDocument: "DocA_Penguins.txt",
-            targetText: "Emperor penguins are commonly found in the Arctic region",
+            targetText: "commonly found in the Arctic region",
             targetDocument: "DocB_Penguins.txt",
-            suggestedFix: "Verify the correct habitat. Emperor penguins are native to Antarctica, not the Arctic.",
-            sourceParagraph: 1,
-            targetParagraph: 2
+            suggestedFix: "Verify the correct habitat. Emperor penguins are native to Antarctica, not the Arctic."
         ),
         index: 1,
         allDocumentTitles: ["DocA_Penguins.txt", "DocB_Penguins.txt"]
@@ -300,9 +285,7 @@ struct IssueCard: View {
             sourceDocument: "Meeting_Notes.txt",
             targetText: "Final submission is due by April 1st",
             targetDocument: "Meeting_Notes.txt",
-            suggestedFix: "Clarify the actual deadline.",
-            sourceParagraph: 2,
-            targetParagraph: 5
+            suggestedFix: "Clarify the actual deadline."
         ),
         index: 2,
         allDocumentTitles: ["Meeting_Notes.txt"]

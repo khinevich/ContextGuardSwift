@@ -11,34 +11,28 @@ import Foundation
 import FoundationModels
 
 @available(iOS 26.0, *)
-@Generable(description: "A contradiction found between documents")
+@Generable(description: "A factual contradiction between two text passages")
 struct ConsistencyIssue {
-    @Guide(description: "HIGH, MEDIUM, or LOW")
+    @Guide(description: "Exactly one of: HIGH, MEDIUM, LOW. HIGH = direct factual conflict (place A vs place B). MEDIUM = numerical or temporal mismatch (date, price, time). LOW = minor or implicit conflict.")
     var severity: String
 
-    @Guide(description: "One sentence explaining the contradiction")
+    @Guide(description: "One short sentence: what exactly contradicts. Example: 'The trip destination differs between the two documents.'")
     var rationale: String
 
-    @Guide(description: "The contradicting text from the first source")
+    @Guide(description: "The exact short phrase from the FIRST document that contradicts. Under 15 words. Copy verbatim from the input text.")
     var sourceText: String
 
-    @Guide(description: "Document name of the first source")
+    @Guide(description: "The filename (e.g. 'Report.txt') of the first document. Must match a filename from the input chunk tags.")
     var sourceDocument: String
 
-    @Guide(description: "The contradicting text from the second source")
+    @Guide(description: "The exact short phrase from the SECOND document that contradicts. Under 15 words. Copy verbatim from the input text.")
     var targetText: String
 
-    @Guide(description: "Document name of the second source")
+    @Guide(description: "The filename (e.g. 'Notes.txt') of the second document. Must match a filename from the input chunk tags. Can be the same as sourceDocument for internal contradictions.")
     var targetDocument: String
 
-    @Guide(description: "How to fix this contradiction")
+    @Guide(description: "One concrete action to resolve the contradiction. Example: 'Confirm whether the trip is to the museum or water park and update both documents.'")
     var suggestedFix: String
-
-    @Guide(description: "Paragraph number from the source document (from [Doc: ..., Paragraph N] tag)")
-    var sourceParagraph: Int
-
-    @Guide(description: "Paragraph number from the target document (from [Doc: ..., Paragraph N] tag)")
-    var targetParagraph: Int
 }
 
 #else
@@ -52,8 +46,6 @@ struct ConsistencyIssue {
     var targetText: String
     var targetDocument: String
     var suggestedFix: String
-    var sourceParagraph: Int
-    var targetParagraph: Int
 }
 
 #endif

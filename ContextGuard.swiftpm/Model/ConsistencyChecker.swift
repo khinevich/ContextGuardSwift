@@ -49,10 +49,7 @@ class ConsistencyChecker {
     // MARK: - File Import
 
     func importFiles(from urls: [URL]) {
-        let available = Self.maxDocuments - documents.count
-        guard available > 0 else { return }
-
-        for url in urls.prefix(available) {
+        for url in urls.prefix(remainingSlots) {
             if let document = loadDocument(from: url) {
                 addDocument(document)
             }
@@ -78,7 +75,6 @@ class ConsistencyChecker {
 
     private func extractTextFromPDF(url: URL) -> String? {
         guard let pdf = PDFDocument(url: url) else { return nil }
-
         var fullText = ""
         for index in 0..<pdf.pageCount {
             if let page = pdf.page(at: index), let pageText = page.string {
@@ -88,73 +84,11 @@ class ConsistencyChecker {
         return fullText.isEmpty ? nil : fullText
     }
 
-    // MARK: - Demo
+    // MARK: - Chunking
 
-    func loadDemo() {
-        clear()
-
-        // Try bundled resource files first
-        if let pathA = Bundle.main.url(forResource: "DocA_Penguins", withExtension: "txt"),
-           let textA = try? String(contentsOf: pathA, encoding: .utf8) {
-            addDocument(Document(id: UUID(), title: "DocA_Penguins.txt", content: textA))
-        }
-        if let pathB = Bundle.main.url(forResource: "DocB_Penguins", withExtension: "txt"),
-           let textB = try? String(contentsOf: pathB, encoding: .utf8) {
-            addDocument(Document(id: UUID(), title: "DocB_Penguins.txt", content: textB))
-        }
-
-        // Fallback: inline demo documents (school trip scenario)
-        if documents.isEmpty {
-            addDocument(Document(
-                id: UUID(),
-                title: "Science_Museum_Trip.txt",
-                content: """
-                SUMMER SCHOOL TRIP: SCIENCE MUSEUM
-
-                Dear Parents,
-                We are excited to go on a trip to the Science Museum in the city center. \
-                The bus will leave from the school gate on Monday, June 1st at 8:00 AM. \
-                We will return to the school by 3:30 PM on the same day.
-
-                WHAT TO BRING:
-                - The cost of the trip is $15 per student.
-                - Please bring a packed lunch from home. The museum cafe is currently closed.
-                - Students must wear their blue school uniform so we can stay together.
-
-                GOAL:
-                The goal is to learn about space and the planets. This trip is part of our \
-                science class. We hope every student can join us for this fun day of learning!
-                """
-            ))
-
-            addDocument(Document(
-                id: UUID(),
-                title: "Teacher_Trip_Update.txt",
-                content: """
-                TRIP UPDATE: WATER PARK ADVENTURE
-
-                Hi Class,
-                Here is the final plan for our big trip to the Water Park at the beach! \
-                The train leaves from the station on Wednesday, June 3rd at 10:00 AM. \
-                We will get back to the school very late, around 7:00 PM.
-
-                COST AND FOOD:
-                - The price is $30 for each person. This includes your ticket and a locker.
-                - You do not need to bring food. We will all eat lunch together at the \
-                park restaurant. The meal is included in the price.
-
-                CLOTHING:
-                - Please wear your favorite swimming clothes and a bright t-shirt.
-                - Do not wear your school uniform because it will get wet and messy.
-
-                Wait for the final bell before you leave the school. See you at the train!
-                """
-            ))
-        }
-    }
-
-    // MARK: - Consistency Check
-
+    /// Builds labeled chunks for the LLM prompt.
+    /// Format: `[filename.txt §N] paragraph text`
+    /// Compact tag saves ~120 tokens vs the old verbose format.
     func buildChunkedText() -> String {
         var chunks: [String] = []
         for doc in documents {
@@ -163,17 +97,32 @@ class ConsistencyChecker {
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty }
             for (i, paragraph) in paragraphs.enumerated() {
-                chunks.append("[Doc: \(doc.title), Paragraph \(i + 1)]: \(paragraph)")
+                chunks.append("[\(doc.title) §\(i + 1)] \(paragraph)")
             }
         }
-        return chunks.joined(separator: "\n\n")
+        return chunks.joined(separator: "\n")
     }
 
-    // MARK: - Run Check (with FoundationModels or mock fallback)
+    /// Locates which paragraph a quoted text belongs to in a document.
+    /// Used in export only — the LLM returns quotes, we resolve locations.
+    func locateParagraph(quote: String, inDocument title: String) -> Int {
+        guard let doc = documents.first(where: { $0.title == title }) else { return 0 }
+        let paragraphs = doc.content
+            .components(separatedBy: "\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        for (i, paragraph) in paragraphs.enumerated() {
+            if paragraph.localizedCaseInsensitiveContains(quote.prefix(30)) {
+                return i + 1
+            }
+        }
+        return 0
+    }
+
+    // MARK: - Run Check
 
     func runCheck() async {
         guard !documents.isEmpty else { return }
-
         state = .analyzing
         issues.removeAll()
 
@@ -184,17 +133,14 @@ class ConsistencyChecker {
         #endif
     }
 
-    // MARK: - Real AI Check (FoundationModels available)
-
     #if canImport(FoundationModels)
     private func runCheckWithFoundationModels() async {
-        // 1. Availability check
         let model = SystemLanguageModel.default
         switch model.availability {
         case .available:
             break
         case .unavailable(.appleIntelligenceNotEnabled):
-            state = .failed("Please enable Apple Intelligence in Settings > Apple Intelligence & Siri.")
+            state = .failed("Please enable Apple Intelligence in Settings → Apple Intelligence & Siri.")
             return
         case .unavailable(.deviceNotEligible):
             state = .failed("This device does not support Apple Intelligence.")
@@ -207,34 +153,28 @@ class ConsistencyChecker {
             return
         }
 
-        // 2. Build chunked text from loaded documents
-        let chunkedText = buildChunkedText()
-
-        // 3. Create session with system prompt
         let session = LanguageModelSession(instructions: """
-            You are a Semantic Consistency Validator. Find factual contradictions \
-            in the provided document chunks.
+            You find factual contradictions in text chunks. Each chunk is tagged \
+            [filename §N] where N is the paragraph number.
 
-            A contradiction: the SAME entity described with CONFLICTING attributes \
-            across different paragraphs or documents.
+            A contradiction: the SAME entity with CONFLICTING facts across chunks.
 
-            Rules:
-            - Only flag genuine factual contradictions, not stylistic differences
-            - Use document names from [Doc: ...] tags for sourceDocument/targetDocument \
-              (use ONLY the filename, e.g. "File.txt", never include "Doc:" prefix)
-            - sourceParagraph/targetParagraph: the paragraph number N from [Doc: ..., Paragraph N]
-            - sourceText/targetText: quote the relevant short phrases, not full paragraphs
-            - Severity: HIGH = direct factual conflict, MEDIUM = numerical/temporal, LOW = minor
-            - If no contradictions exist, return an empty array
+            Flag: different destinations, dates, prices, rules, or facts about the same thing.
 
-            Do NOT flag: different wording saying the same thing, one document \
-            having more detail, or subjective statements.
+            Do NOT flag:
+            - Different wording saying the same thing
+            - One document having more detail than another
+            - Opinions or subjective descriptions
+            - Information present in one document but absent in another
+
+            sourceDocument/targetDocument: use ONLY the filename (e.g. "File.txt").
+            sourceText/targetText: quote the key conflicting phrase, under 15 words, verbatim.
+            If no contradictions exist, return an empty array.
             """)
 
-        // 4. Guided generation — response.content is [ConsistencyIssue]
         do {
             let response = try await session.respond(
-                to: chunkedText,
+                to: buildChunkedText(),
                 generating: [ConsistencyIssue].self
             )
             issues = response.content
@@ -254,107 +194,19 @@ class ConsistencyChecker {
     }
     #endif
 
-    // MARK: - Mock Fallback (when FoundationModels is not available)
+    // MARK: - Mock Fallback
 
-    /// Used when running in Swift Playgrounds or on devices without Apple Intelligence.
-    /// Returns realistic mock results so the full UI flow can be demonstrated.
     private func runCheckMock() async {
-        // Simulate processing delay
         try? await Task.sleep(for: .seconds(2))
 
-        // Check if it's the demo documents (school trip)
-        let titles = documents.map { $0.title }
-        let allContent = documents.map { $0.content }.joined(separator: " ")
+        let titles = documents.map(\.title)
+        let allContent = documents.map(\.content).joined(separator: " ")
 
-        if titles.contains("Science_Museum_Trip.txt") && titles.contains("Teacher_Trip_Update.txt") {
-            // Two-document demo: school trip contradictions
-            issues = [
-                ConsistencyIssue(
-                    severity: "HIGH",
-                    rationale: "The trip destination is completely different across the two documents.",
-                    sourceText: "trip to the Science Museum in the city center",
-                    sourceDocument: "Science_Museum_Trip.txt",
-                    targetText: "trip to the Water Park at the beach",
-                    targetDocument: "Teacher_Trip_Update.txt",
-                    suggestedFix: "Confirm the actual destination — Science Museum or Water Park — and update both documents.",
-                    sourceParagraph: 2,
-                    targetParagraph: 2
-                ),
-                ConsistencyIssue(
-                    severity: "MEDIUM",
-                    rationale: "The trip date and departure time are contradictory.",
-                    sourceText: "Monday, June 1st at 8:00 AM",
-                    sourceDocument: "Science_Museum_Trip.txt",
-                    targetText: "Wednesday, June 3rd at 10:00 AM",
-                    targetDocument: "Teacher_Trip_Update.txt",
-                    suggestedFix: "Align the trip date — parents need one consistent date and time.",
-                    sourceParagraph: 2,
-                    targetParagraph: 2
-                ),
-                ConsistencyIssue(
-                    severity: "MEDIUM",
-                    rationale: "The food instructions directly contradict each other.",
-                    sourceText: "bring a packed lunch from home. The museum cafe is currently closed",
-                    sourceDocument: "Science_Museum_Trip.txt",
-                    targetText: "You do not need to bring food. We will all eat lunch together",
-                    targetDocument: "Teacher_Trip_Update.txt",
-                    suggestedFix: "Clarify whether students should pack lunch or if food is provided.",
-                    sourceParagraph: 4,
-                    targetParagraph: 4
-                ),
-                ConsistencyIssue(
-                    severity: "MEDIUM",
-                    rationale: "The dress code contradicts across documents.",
-                    sourceText: "Students must wear their blue school uniform",
-                    sourceDocument: "Science_Museum_Trip.txt",
-                    targetText: "Do not wear your school uniform because it will get wet",
-                    targetDocument: "Teacher_Trip_Update.txt",
-                    suggestedFix: "Specify one dress code — school uniform or swimming clothes.",
-                    sourceParagraph: 5,
-                    targetParagraph: 7
-                ),
-            ]
+        if titles.contains("DemoScienceMuseumTrip.txt") && titles.contains("Teacher_Trip_Update.txt") {
+            issues = DemoData.twoDocIssues
         } else if allContent.contains("sun hat") && allContent.contains("Hats are not allowed") {
-            // Single-document demo: camp guide contradictions
-            let docTitle = titles.first ?? "Document"
-            issues = [
-                ConsistencyIssue(
-                    severity: "HIGH",
-                    rationale: "The snack policy directly contradicts the camp shop description.",
-                    sourceText: "No candy, soda, or sugary snacks are allowed",
-                    sourceDocument: docTitle,
-                    targetText: "bring $5 every day so you can buy candy and soda",
-                    targetDocument: docTitle,
-                    suggestedFix: "Decide whether candy and soda are banned or sold.",
-                    sourceParagraph: 3,
-                    targetParagraph: 7
-                ),
-                ConsistencyIssue(
-                    severity: "HIGH",
-                    rationale: "The hat policy contradicts itself within the same document.",
-                    sourceText: "You must always wear a sun hat when you are outside",
-                    sourceDocument: docTitle,
-                    targetText: "Hats are not allowed at camp",
-                    targetDocument: docTitle,
-                    suggestedFix: "Clarify whether hats are required or banned.",
-                    sourceParagraph: 4,
-                    targetParagraph: 8
-                ),
-                ConsistencyIssue(
-                    severity: "HIGH",
-                    rationale: "The grading section says there are no tests, but then describes a final exam.",
-                    sourceText: "There are no tests at this camp",
-                    sourceDocument: docTitle,
-                    targetText: "The final exam is on Friday afternoon",
-                    targetDocument: docTitle,
-                    suggestedFix: "Remove either the 'no tests' claim or the final exam details.",
-                    sourceParagraph: 5,
-                    targetParagraph: 9
-                ),
-            ]
+            issues = DemoData.singleDocIssues
         } else {
-            // Generic fallback for user-imported documents
-            // Show a helpful message instead of fake results
             state = .failed(
                 "On-device AI (Apple Intelligence) is not available in this environment. " +
                 "To run a real consistency check, open this project in Xcode 26 and deploy " +
@@ -376,12 +228,17 @@ class ConsistencyChecker {
         report += String(repeating: "=", count: 40) + "\n\n"
 
         for (index, issue) in issues.enumerated() {
+            let srcP = locateParagraph(quote: issue.sourceText, inDocument: issue.sourceDocument)
+            let tgtP = locateParagraph(quote: issue.targetText, inDocument: issue.targetDocument)
+
             report += "Issue #\(index + 1) [\(issue.severity.uppercased())]\n"
             report += issue.rationale + "\n\n"
-            report += "  \(issue.sourceDocument), Paragraph \(issue.sourceParagraph):\n"
-            report += "  \"\(issue.sourceText)\"\n\n"
-            report += "  \(issue.targetDocument), Paragraph \(issue.targetParagraph):\n"
-            report += "  \"\(issue.targetText)\"\n\n"
+            report += "  \(issue.sourceDocument)"
+            if srcP > 0 { report += " (Paragraph \(srcP))" }
+            report += ":\n  \"\(issue.sourceText)\"\n\n"
+            report += "  \(issue.targetDocument)"
+            if tgtP > 0 { report += " (Paragraph \(tgtP))" }
+            report += ":\n  \"\(issue.targetText)\"\n\n"
             report += "  Suggested Fix: \(issue.suggestedFix)\n"
             report += String(repeating: "-", count: 40) + "\n\n"
         }
@@ -392,7 +249,6 @@ class ConsistencyChecker {
     func exportToFile() -> URL? {
         let text = exportAsText()
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("ContextGuard_Report.txt")
-
         do {
             try text.write(to: url, atomically: true, encoding: .utf8)
             return url
