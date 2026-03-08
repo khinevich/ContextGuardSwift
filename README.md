@@ -2,6 +2,9 @@
 
 **Swift Student Challenge 2026 Submission — An On-Device Document Consistency Checker**
 
+![ContextGuard Logo](Content/ContextGuard.png)
+
+
 ## Problem
 
 In educational settings, legal research, and technical documentation, information is spread across multiple documents — PDFs, scanned handouts, typed notes. When these documents contradict each other, it creates what educational psychology calls **Extraneous Cognitive Load** (Mayer's Coherence Principle). Users waste mental energy reconciling contradictions instead of focusing on actual content.
